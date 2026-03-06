@@ -1,63 +1,2148 @@
 <!DOCTYPE html>
 <html lang="sk">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DPPO 2025 – Generátor XML | Helwitax</title>
-  <link rel="stylesheet" href="css/style.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DPFO Typ B 2025 – Helwitax</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --purple:    #321941;
+    --purple2:   #3C1E46;
+    --green:     #AFFA96;
+    --green2:    #CDFFB4;
+    --black:     #000000;
+    --white:     #ffffff;
+    --bg:        #f7f6f9;
+    --surface:   #ffffff;
+    --surface2:  #f2f0f5;
+    --border:    #e4dff0;
+    --text:      #321941;
+    --muted:     #7a6b90;
+    --sans: 'Cabinet Grotesk', sans-serif;
+    --mono: 'Cabinet Grotesk', sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;font-size:14px}
+
+  /* ── HEADER ── */
+  header{
+    background:var(--purple);
+    padding:0 40px;
+    height:64px;
+    display:flex;align-items:center;justify-content:space-between;
+    position:sticky;top:0;z-index:100;
+  }
+  .logo-wrap{display:flex;align-items:center;gap:14px}
+  .logo-svg{height:28px;width:auto}
+  .logo-divider{width:1px;height:24px;background:rgba(175,250,150,.25)}
+  .logo-label{font-size:12px;font-weight:500;color:rgba(175,250,150,.7);letter-spacing:.06em;text-transform:uppercase}
+  .badge{
+    font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+    background:var(--green);color:var(--purple);
+    padding:4px 12px;border-radius:20px;
+  }
+
+  /* ── CONTAINER ── */
+  .container{max-width:940px;margin:0 auto;padding:40px 24px 100px}
+  h1{font-size:28px;font-weight:800;color:var(--purple);margin-bottom:4px;letter-spacing:-.02em}
+  .subtitle{color:var(--muted);font-size:13px;margin-bottom:36px;font-weight:400}
+
+  /* ── STEPS ── */
+  .steps{display:flex;gap:0;margin-bottom:32px;background:var(--surface);border:1.5px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(50,25,65,.06)}
+  .step{flex:1;padding:18px 8px;background:transparent;border-right:1px solid var(--border);cursor:pointer;transition:background .15s;text-align:center}
+  .step:last-child{border-right:none}
+  .step.active{background:var(--purple);border-bottom:none}
+  .step.done{background:rgba(175,250,150,.12)}
+  .step-num{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;letter-spacing:.06em}
+  .step-label{font-size:14px;font-weight:700;color:var(--text)}
+  .step.active .step-num{color:rgba(175,250,150,.6)}
+  .step.active .step-label{color:var(--green)}
+  .step.done .step-num{color:#7a6b90}
+  .step.done .step-label{color:#321941}
+
+  /* ── SECTIONS ── */
+  .section{background:var(--surface);border:1.5px solid var(--border);border-radius:12px;margin-bottom:20px;overflow:hidden;box-shadow:0 2px 8px rgba(50,25,65,.05)}
+  .section-header{padding:14px 22px;background:var(--surface2);border-bottom:1.5px solid var(--border);display:flex;align-items:center;gap:10px}
+  .section-tag{font-size:10px;font-weight:800;color:var(--purple);background:var(--green);padding:3px 9px;border-radius:20px;letter-spacing:.06em;text-transform:uppercase}
+  .section-title{font-size:13px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--purple)}
+  .section-body{padding:22px}
+
+  /* ── GRID / FIELDS ── */
+  .grid{display:grid;gap:16px}
+  .grid-2{grid-template-columns:1fr 1fr}
+  .grid-3{grid-template-columns:1fr 1fr 1fr}
+  .field{display:flex;flex-direction:column;gap:6px}
+  label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+  input,select{
+    background:var(--bg);border:1.5px solid var(--border);color:var(--text);
+    padding:10px 13px;border-radius:8px;font-family:var(--sans);font-size:13px;font-weight:500;
+    transition:border-color .15s,box-shadow .15s;width:100%;
+  }
+  input:focus,select:focus{outline:none;border-color:var(--purple);box-shadow:0 0 0 3px rgba(50,25,65,.08)}
+  .field-note{font-size:11px;color:var(--muted);font-style:italic}
+  .radio-group{display:flex;gap:8px;flex-wrap:wrap}
+  .radio-opt{
+    display:flex;align-items:center;gap:7px;padding:8px 15px;
+    border:1.5px solid var(--border);border-radius:8px;cursor:pointer;
+    font-size:13px;font-weight:500;transition:all .15s;background:var(--bg);
+  }
+  .radio-opt input{width:auto}
+  .radio-opt:has(input:checked){border-color:var(--purple);background:rgba(50,25,65,.06);color:var(--purple)}
+  .divider{border:none;border-top:1.5px solid var(--border);margin:16px 0}
+  .computed-row{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:11px 16px;background:var(--surface2);border-radius:8px;
+    border:1.5px solid var(--border);margin-top:8px;
+  }
+  .computed-label{font-size:12px;color:var(--muted);font-weight:600}
+  .computed-value{font-size:15px;font-weight:800;color:var(--purple)}
+  .computed-value.highlight{color:var(--purple);font-size:20px;font-weight:800}
+
+  /* ── PAGES ── */
+  .page{display:none}
+  .page.active{display:block}
+
+  /* ── SUMMARY TABLE ── */
+  .sum-table{width:100%;border-collapse:collapse}
+  .sum-table tr{border-bottom:1px solid var(--border)}
+  .sum-table tr:last-child{border-bottom:none}
+  .sum-table td{padding:11px 16px;font-size:13px}
+  .sum-table td:first-child{color:var(--muted);font-size:10px;font-weight:700;width:70px;letter-spacing:.04em}
+  .sum-table td:last-child{text-align:right;font-weight:700}
+  .sum-table .total td{color:var(--purple);font-size:16px;font-weight:800;background:rgba(175,250,150,.18)}
+  .sum-table .section-sep td{background:var(--surface2);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);padding:7px 16px;font-weight:800}
+
+  /* ── BUTTONS ── */
+  .btn-row{display:flex;gap:12px;margin-top:28px;justify-content:flex-end}
+  .btn{padding:11px 26px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:none;font-family:var(--sans);transition:all .15s;letter-spacing:.02em}
+  .btn-primary{background:var(--purple);color:#fff}
+  .btn-primary:hover{background:var(--purple2);transform:translateY(-1px);box-shadow:0 4px 12px rgba(50,25,65,.25)}
+  .btn-secondary{background:transparent;border:1.5px solid var(--border);color:var(--text)}
+  .btn-secondary:hover{border-color:var(--purple);color:var(--purple)}
+  .btn-green{background:var(--green);color:var(--purple)}
+  .btn-green:hover{background:var(--green2);transform:translateY(-1px);box-shadow:0 4px 12px rgba(175,250,150,.4)}
+  .btn-purple{background:var(--purple2);color:#fff}
+  .btn-purple:hover{background:var(--purple);transform:translateY(-1px)}
+
+  /* ── INFO BOXES ── */
+  .info-box{padding:13px 16px;background:rgba(175,250,150,.15);border:1.5px solid rgba(175,250,150,.5);border-radius:8px;font-size:12px;color:var(--purple);line-height:1.6;margin-bottom:16px;font-weight:500}
+  .warn-box{padding:13px 16px;background:rgba(50,25,65,.06);border:1.5px solid rgba(50,25,65,.2);border-radius:8px;font-size:12px;color:var(--purple);line-height:1.6;margin-top:12px;font-weight:500}
+
+  /* ── XML OUTPUT ── */
+  .xml-output{
+    background:var(--purple);border-radius:10px;padding:18px;
+    font-family:monospace;font-size:11px;color:var(--green);
+    overflow-x:auto;white-space:pre;max-height:400px;overflow-y:auto;line-height:1.7;
+  }
+
+  .sub-header{margin:0 -22px;padding:10px 22px}
+
+  /* ── CHILD CARD ── */
+  .child-card{background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:16px}
+  .child-card-header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .months-grid{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px}
+  .month-all{
+    display:flex;align-items:center;gap:5px;padding:6px 12px;
+    background:var(--purple);color:var(--green);border-radius:7px;
+    cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap;user-select:none;
+  }
+  .month-all input{accent-color:var(--green);width:13px;height:13px}
+  .month-opt{
+    display:flex;align-items:center;justify-content:center;
+    width:34px;height:34px;border-radius:7px;cursor:pointer;
+    border:1.5px solid var(--border);background:var(--surface);
+    font-size:12px;font-weight:700;color:var(--muted);user-select:none;transition:all .12s;
+  }
+  .month-opt input{display:none}
+  .month-opt:has(input:checked){background:var(--purple);color:var(--green);border-color:var(--purple)}
+
+  /* ── AUTH / CLIENT OVERLAYS ── */
+  .overlay{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;background:var(--bg)}
+  .overlay.hidden{display:none}
+  .auth-card{background:var(--surface);border:1.5px solid var(--border);border-radius:16px;padding:44px 40px;width:400px;max-width:92vw;box-shadow:0 8px 32px rgba(50,25,65,.12)}
+  .auth-logo{display:flex;align-items:center;gap:12px;margin-bottom:32px}
+  .auth-title{font-size:22px;font-weight:800;color:var(--purple);margin-bottom:6px;letter-spacing:-.02em}
+  .auth-sub{font-size:13px;color:var(--muted);margin-bottom:28px}
+  .auth-field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+  .auth-field label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+  .auth-field input{background:var(--bg);border:1.5px solid var(--border);color:var(--text);padding:11px 14px;border-radius:8px;font-family:var(--sans);font-size:14px;font-weight:500;width:100%}
+  .auth-field input:focus{outline:none;border-color:var(--purple);box-shadow:0 0 0 3px rgba(50,25,65,.08)}
+  .auth-err{font-size:12px;color:#c0392b;background:rgba(192,57,43,.08);border:1px solid rgba(192,57,43,.2);border-radius:7px;padding:9px 12px;margin-bottom:14px;display:none}
+  .auth-err.show{display:block}
+
+  /* ── CLIENT MANAGER ── */
+  .cm-overlay{position:fixed;inset:0;z-index:150;background:var(--bg);overflow-y:auto}
+  .cm-overlay.hidden{display:none}
+  .cm-wrap{max-width:860px;margin:0 auto;padding:40px 24px 80px}
+  .cm-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;gap:16px}
+  .cm-title{font-size:24px;font-weight:800;color:var(--purple);letter-spacing:-.02em}
+  .cm-search{background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;font-family:var(--sans);font-size:13px;width:260px;color:var(--text)}
+  .cm-search:focus{outline:none;border-color:var(--purple)}
+  .cm-list{display:flex;flex-direction:column;gap:10px;margin-top:20px}
+  .cm-item{background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:all .15s}
+  .cm-item:hover{border-color:var(--purple);box-shadow:0 4px 12px rgba(50,25,65,.1)}
+  .cm-item-info{flex:1}
+  .cm-item-name{font-size:15px;font-weight:700;color:var(--purple)}
+  .cm-item-meta{font-size:12px;color:var(--muted);margin-top:2px}
+  .cm-item-actions{display:flex;gap:8px}
+  .cm-btn-select{background:var(--purple);color:#fff;border:none;padding:8px 18px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans)}
+  .cm-btn-select:hover{background:var(--purple2)}
+  .cm-btn-edit{background:transparent;border:1.5px solid rgba(50,25,65,.25);color:var(--purple);padding:7px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans)}
+  .cm-btn-edit:hover{background:rgba(50,25,65,.06)}
+  .cm-btn-del{background:transparent;border:1.5px solid rgba(192,57,43,.3);color:#c0392b;padding:7px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans)}
+  .cm-btn-del:hover{background:rgba(192,57,43,.08)}
+  .cm-empty{text-align:center;padding:60px 20px;color:var(--muted);font-size:14px}
+
+  /* ── ADD CLIENT FORM ── */
+  .cm-add-panel{background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px;display:none}
+  .cm-add-panel.open{display:block}
+  .cm-add-title{font-size:14px;font-weight:700;color:var(--purple);margin-bottom:16px;text-transform:uppercase;letter-spacing:.04em}
+
+  /* ── HEADER USER BADGE ── */
+  .user-badge{display:flex;align-items:center;gap:10px}
+  .user-name{font-size:12px;color:rgba(175,250,150,.7);font-weight:500}
+  .btn-clients{background:rgba(175,250,150,.15);border:1px solid rgba(175,250,150,.3);color:var(--green);padding:7px 16px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans);transition:all .15s}
+  .btn-clients:hover{background:rgba(175,250,150,.25)}
+  .btn-logout{background:transparent;border:1px solid rgba(175,250,150,.2);color:rgba(175,250,150,.5);padding:7px 12px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--sans)}
+  .btn-logout:hover{border-color:rgba(175,250,150,.5);color:var(--green)}
+
+  /* ── SAVE INDICATOR ── */
+  .save-indicator{position:fixed;bottom:20px;right:20px;background:var(--purple);color:var(--green);padding:10px 18px;border-radius:9px;font-size:12px;font-weight:700;box-shadow:0 4px 16px rgba(50,25,65,.25);z-index:300;opacity:0;transition:opacity .3s;pointer-events:none}
+  .save-indicator.show{opacity:1}
+
+  /* ── PAGE TITLE AREA ── */
+  .page-hero{
+    background:var(--purple);border-radius:12px;padding:28px 32px;margin-bottom:24px;
+    position:relative;overflow:hidden;
+  }
+  .page-hero::before{
+    content:'';position:absolute;right:-60px;top:-60px;
+    width:220px;height:220px;
+    background:radial-gradient(circle, rgba(175,250,150,.15) 0%, transparent 70%);
+  }
+  .page-hero h1{color:#fff;font-size:24px;font-weight:800;margin-bottom:4px}
+  .page-hero .subtitle{color:rgba(175,250,150,.7);font-size:13px;margin-bottom:0}
+
+  @media(max-width:640px){
+    .grid-2,.grid-3{grid-template-columns:1fr}
+    header{padding:0 16px}
+    .container{padding:20px 16px 60px}
+    .steps{flex-direction:column}
+    .step{border-right:none;border-bottom:1px solid var(--border)}
+    .page-hero{padding:20px}
+    .page-hero h1{font-size:20px}
+  }
+</style>
 </head>
 <body>
-
-  <!-- Top bar -->
-  <div class="topbar">
-    <div>
-      <div class="topbar-brand">Helwitax · Generátor XML</div>
-      <h1>Daňové priznanie PO <span>2025</span></h1>
+<!-- ── LOGIN OVERLAY ── -->
+<div class="overlay" id="loginOverlay">
+  <div class="auth-card">
+    <div class="auth-logo" id="loginLogoWrap">
+      <div style="font-size:20px;font-weight:800;color:var(--purple);letter-spacing:-.02em">helwitax</div>
+      <div style="font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-top:2px">DPFO · Interná aplikácia</div>
     </div>
-    <div class="topbar-actions" id="topActions" style="display:none">
-      <button class="btn btn-blue" onclick="doGenerate()">Generovať XML</button>
-      <button class="btn btn-green" onclick="doDownload()">⬇ Stiahnuť XML</button>
+    <div class="auth-title">Prihlásiť sa</div>
+    <div class="auth-sub">DPFO Typ B · Interná aplikácia</div>
+    <div class="auth-err" id="loginErr"></div>
+    <div class="auth-field">
+      <label>E-mail</label>
+      <input type="email" id="loginEmail" placeholder="dpfo@helwitax.sk" autocomplete="email">
+    </div>
+    <div class="auth-field">
+      <label>Heslo</label>
+      <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:8px;padding:13px" onclick="doLogin()" id="loginBtn">Prihlásiť sa</button>
+    <div style="margin-top:20px;text-align:center">
+      <a href="#" onclick="showReset()" style="font-size:12px;color:var(--muted);text-decoration:none">Zabudnuté heslo?</a>
+    </div>
+  </div>
+</div>
+
+<!-- ── CLIENT MANAGER OVERLAY ── -->
+<div class="cm-overlay hidden" id="cmOverlay">
+  <div class="cm-wrap">
+    <div class="cm-header">
+      <div>
+        <div class="cm-title">Klienti</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:2px">Vyberte klienta alebo pridajte nového</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <input type="text" class="cm-search" id="cmSearch" placeholder="🔍 Hľadať klienta..." oninput="filterClients()">
+        <button class="btn btn-primary" onclick="toggleAddPanel()">+ Nový klient</button>
+        <button class="btn btn-secondary" onclick="closeCM()">✕ Zavrieť</button>
+      </div>
+    </div>
+
+    <!-- Add panel -->
+    <div class="cm-add-panel" id="cmAddPanel">
+      <div class="cm-add-title">Nový klient</div>
+      <div class="grid grid-3" style="margin-bottom:14px">
+        <div class="field"><label>Priezvisko *</label><input type="text" id="cm_priezvisko" placeholder="Novák"></div>
+        <div class="field"><label>Meno *</label><input type="text" id="cm_meno" placeholder="Ján"></div>
+        <div class="field"><label>DIČ</label><input type="text" id="cm_dic" placeholder="1234567890"></div>
+      </div>
+      <div class="grid grid-3" style="margin-bottom:14px">
+        <div class="field"><label>Rodné číslo</label><input type="text" id="cm_rc" placeholder="800101/1234"></div>
+        <div class="field"><label>E-mail</label><input type="text" id="cm_email_k" placeholder="jan@novak.sk"></div>
+        <div class="field"><label>Telefón</label><input type="text" id="cm_telefon_k" placeholder="+421 900 000 000"></div>
+      </div>
+      <div class="grid grid-3" style="margin-bottom:14px">
+        <div class="field" style="grid-column:span 2"><label>Ulica</label><input type="text" id="cm_ulica" placeholder="Športovcov"></div>
+        <div class="field"><label>Č. domu</label><input type="text" id="cm_cislo" placeholder="15"></div>
+      </div>
+      <div class="grid grid-3" style="margin-bottom:14px">
+        <div class="field"><label>PSČ</label><input type="text" id="cm_psc" placeholder="91441"></div>
+        <div class="field"><label>Obec</label><input type="text" id="cm_obec" placeholder="Trenčín"></div>
+        <div class="field"><label>SK NACE</label><input type="text" id="cm_nace" placeholder="69.20.0"></div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="toggleAddPanel()">Zrušiť</button>
+        <button class="btn btn-green" onclick="saveNewClient()">Uložiť klienta</button>
+      </div>
+    </div>
+
+    <!-- Edit panel -->
+    <div class="cm-add-panel" id="cmEditPanel">
+      <div class="cm-add-title">Upraviť klienta</div>
+      <input type="hidden" id="cm_edit_id">
+      <div class="grid grid-3" style="margin-bottom:14px">
+        <div class="field"><label>Priezvisko *</label><input type="text" id="cm_edit_priezvisko" placeholder="Novák"></div>
+        <div class="field"><label>Meno *</label><input type="text" id="cm_edit_meno" placeholder="Ján"></div>
+        <div class="field"><label>DIČ</label><input type="text" id="cm_edit_dic" placeholder="1234567890"></div>
+      </div>
+      <div class="grid grid-3" style="margin-bottom:14px">
+        <div class="field"><label>Rodné číslo</label><input type="text" id="cm_edit_rc" placeholder="800101/1234"></div>
+        <div class="field"><label>E-mail</label><input type="text" id="cm_edit_email_k" placeholder="jan@novak.sk"></div>
+        <div class="field"><label>Telefón</label><input type="text" id="cm_edit_telefon_k" placeholder="+421 900 000 000"></div>
+      </div>
+      <div class="grid grid-3" style="margin-bottom:14px">
+        <div class="field" style="grid-column:span 2"><label>Ulica</label><input type="text" id="cm_edit_ulica" placeholder="Športovcov"></div>
+        <div class="field"><label>Č. domu</label><input type="text" id="cm_edit_cislo" placeholder="15"></div>
+      </div>
+      <div class="grid grid-3" style="margin-bottom:14px">
+        <div class="field"><label>PSČ</label><input type="text" id="cm_edit_psc" placeholder="91441"></div>
+        <div class="field"><label>Obec</label><input type="text" id="cm_edit_obec" placeholder="Trenčín"></div>
+        <div class="field"><label>SK NACE</label><input type="text" id="cm_edit_nace" placeholder="69.20.0"></div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="closeEditPanel()">Zrušiť</button>
+        <button class="btn btn-green" onclick="updateClient()">Uložiť zmeny</button>
+      </div>
+    </div>
+
+    <div class="cm-list" id="cmList">
+      <div class="cm-empty">Načítavanie klientov…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SAVE INDICATOR ── -->
+<div class="save-indicator" id="saveIndicator">✓ Uložené</div>
+
+<header>
+  <div class="logo-wrap">
+    <img src="data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCALzB9ADASIAAhEBAxEB/8QAHQABAAMAAgMBAAAAAAAAAAAAAAcICQUGAQMEAv/EAFsQAQABAwICBAYJEAgEBgECBwABAgMEBQYHEQgSITE3QVFhcYETGCJ0dZGTsrMUFRYjMjZCVVZzhZShsdHSF0NSYnKCwcIkkpWiJTNTVGPTNESDJmRlo+Hi8f/EABoBAQADAQEBAAAAAAAAAAAAAAAEBQYDAgH/xAA1EQEAAgECAggEBgMAAwEBAAAAAQIDBAURcRITFSExM0FRMmGBkSI0UqGx0ULB8BQjQ+Fi/9oADAMBAAIRAxEAPwCmQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA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AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//9k=" style="height:28px;width:auto;display:block" alt="helwitax">
+    <div class="logo-divider"></div>
+    <div class="logo-label">DPFO Typ B</div>
+  </div>
+  <div class="badge">ZO 2025</div>
+  <div class="user-badge" id="headerUserBadge" style="display:none">
+    <span class="user-name" id="headerUserEmail"></span>
+    <button class="btn-clients" onclick="openCM()">👥 Klienti</button>
+    <button class="btn-logout" onclick="doLogout()">Odhlásiť</button>
+  </div>
+</header>
+
+<div class="container">
+  <div class="page-hero">
+    <h1>Daňové priznanie – Typ B</h1>
+    <div class="subtitle">Zdaňovacie obdobie 2025 · Tlačivo MF/012186/2025-721</div>
+  </div>
+
+  <div class="steps">
+    <div class="step active" onclick="goPage(0)"><span class="step-num">01</span><span class="step-label">Daňovník</span></div>
+    <div class="step" onclick="goPage(1)"><span class="step-num">02</span><span class="step-label">Príjmy §5</span></div>
+    <div class="step" onclick="goPage(2)"><span class="step-num">03</span><span class="step-label">Príjmy §6</span></div>
+    <div class="step" onclick="goPage(3)"><span class="step-num">04</span><span class="step-label">Odpočty</span></div>
+    <div class="step" onclick="goPage(4)"><span class="step-num">05</span><span class="step-label">Súhrn & Export</span></div>
+  </div>
+
+  <!-- PAGE 0 – DAŇOVNÍK -->
+  <div class="page active" id="page0">
+    <div class="section">
+      <div class="section-header"><span class="section-tag">I. ODDIEL</span><span class="section-title">Údaje o daňovníkovi</span></div>
+      <div class="section-body">
+        <div class="info-box">Formulár DPFOBv25 platný od 1.1.2026 – zdaňovacie obdobie 2025. Lehota podania: <strong>31.3.2026</strong> (odklad do 30.6. alebo 30.9.2026 pri zahraničných príjmoch).</div>
+        <div class="grid grid-3" style="margin-bottom:16px">
+          <div class="field"><label>DIČ (r.01)</label><input type="text" id="dic" placeholder="1234567890" maxlength="10"></div>
+          <div class="field"><label>Druh daňového priznania</label><select id="druhDP"><option value="DP">Daňové (riadne)</option><option value="ODP">Opravné</option><option value="DDP">Dodatočné</option></select></div>
+          <div class="field"><label>SK NACE (r.03)</label><input type="text" id="nace" placeholder="pr. 69.20.0"></div>
+        </div>
+        <div class="grid grid-2" style="margin-bottom:16px">
+          <div class="field"><label>Meno (r.05)</label><input type="text" id="meno" placeholder="Ján"></div>
+          <div class="field"><label>Priezvisko (r.04)</label><input type="text" id="priezvisko" placeholder="Novák"></div>
+        </div>
+        <div class="grid grid-2" style="margin-bottom:16px">
+          <div class="field"><label>Titul pred (r.06)</label><input type="text" id="titul_pred" placeholder="Ing."></div>
+          <div class="field"><label>Titul za</label><input type="text" id="titul_za" placeholder=""></div>
+        </div>
+        <div class="grid grid-3" style="margin-bottom:16px">
+          <div class="field"><label>Rodné číslo (r.09)</label><input type="text" id="rc" placeholder="800101/1234"></div>
+          <div class="field"><label>Dátum narodenia</label><input type="date" id="datnar"></div>
+          <div class="field"><label>Štát rezidencie</label><input type="text" id="stat" value="SR"></div>
+        </div>
+        <hr class="divider">
+        <div class="grid grid-3" style="margin-bottom:16px">
+          <div class="field" style="grid-column:span 2"><label>Ulica (r.07)</label><input type="text" id="ulica" placeholder="Športovcov"></div>
+          <div class="field"><label>Súpisné/orient. číslo (r.08)</label><input type="text" id="cislo" placeholder="488/15"></div>
+        </div>
+        <div class="grid grid-3" style="margin-bottom:16px">
+          <div class="field"><label>PSČ (r.09)</label><input type="text" id="psc" placeholder="91441"></div>
+          <div class="field"><label>Obec (r.10)</label><input type="text" id="obec" placeholder="Nemšová"></div>
+          <div class="field"><label>Telefón (r.27)</label><input type="text" id="telefon" placeholder="+421 900 000 000"></div>
+        </div>
+        <div class="field"><label>E-mail (r.28)</label><input type="email" id="email" placeholder="jan@novak.sk"></div>
+      </div>
+    </div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="goPage(1)">Pokračovať →</button></div>
+  </div>
+
+  <!-- PAGE 1 – §5 ZÁVISLÁ ČINNOSŤ -->
+  <div class="page" id="page1">
+    <div class="section">
+      <div class="section-header"><span class="section-tag">V. ODDIEL</span><span class="section-title">Príjmy zo závislej činnosti (§5)</span></div>
+      <div class="section-body">
+        <div class="info-box">
+          Ak daňovník mal v roku 2025 <strong>aj príjmy zo zamestnania, dohody alebo konateľstva</strong>, vypĺňa tento oddiel. Údaje preberá z <em>Potvrdenia o zdaniteľných príjmoch</em> od zamestnávateľa. Ak nemal §5 príjmy, nechajte všetko na 0.
+        </div>
+
+        <!-- Zamestnávateľ 1 -->
+        <div class="sub-header section-header" style="background:rgba(79,142,247,.06)">
+          <span class="section-tag" style="background:rgba(79,142,247,.15)">ZAM 1</span>
+          <span class="section-title" style="font-size:12px">Zamestnávateľ / Dohoda č.1</span>
+        </div>
+        <div class="grid grid-3" style="margin-top:16px;margin-bottom:8px">
+          <div class="field">
+            <label>Príjmy zo ZČ brutto (€) – r.36</label>
+            <input type="number" id="p5_1_prijmy" value="0" min="0" step="0.01" oninput="calc5()">
+            <span class="field-note">Hrubý príjem vrátane nepeňažných</span>
+          </div>
+          <div class="field">
+            <label>ZP zrazené zamestnancom (€) – Príl.4 r.10</label>
+            <input type="number" id="p5_1_zp" value="0" min="0" step="0.01" oninput="calc5()">
+            <span class="field-note">Zdravotné poistenie zrazené zo mzdy</span>
+          </div>
+          <div class="field">
+            <label>SP zrazené zamestnancom (€) – Príl.4 r.09</label>
+            <input type="number" id="p5_1_sp" value="0" min="0" step="0.01" oninput="calc5()">
+            <span class="field-note">Sociálne poistenie zrazené zo mzdy</span>
+          </div>
+        </div>
+        <div class="grid grid-3" style="margin-bottom:16px">
+          <div class="field">
+            <label>Preddavky na daň zrazené (€) – r.39</label>
+            <input type="number" id="p5_1_preddavky" value="0" min="0" step="0.01" oninput="calc5()">
+            <span class="field-note">Zrazené preddavky v roku 2025</span>
+          </div>
+        </div>
+        <div class="grid grid-2" style="margin-bottom:16px">
+          <div class="field">
+            <label>Druh príjmu</label>
+            <select id="p5_1_druh" onchange="calc5()">
+              <option value="zam">Pracovný pomer (HPP/DPP/DPC)</option>
+              <option value="dohoda">Dohoda o vykonaní práce / pracovnej činnosti</option>
+              <option value="konatel">Konateľ / člen org. zložky</option>
+              <option value="ine">Iné §5</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Ročné zúčtovanie vykonané zamestnávateľom?</label>
+            <div class="radio-group">
+              <label class="radio-opt"><input type="radio" name="zuctovanie1" value="nie" checked> Nie</label>
+              <label class="radio-opt"><input type="radio" name="zuctovanie1" value="ano"> Áno</label>
+            </div>
+          </div>
+        </div>
+
+        <hr class="divider">
+
+        <!-- Zamestnávateľ 2 -->
+        <div class="sub-header section-header" style="background:rgba(124,92,191,.06)">
+          <span class="section-tag" style="background:rgba(124,92,191,.15)">ZAM 2</span>
+          <span class="section-title" style="font-size:12px">Zamestnávateľ / Dohoda č.2 (voliteľné)</span>
+        </div>
+        <div class="grid grid-3" style="margin-top:16px;margin-bottom:8px">
+          <div class="field">
+            <label>Príjmy zo ZČ brutto (€)</label>
+            <input type="number" id="p5_2_prijmy" value="0" min="0" step="0.01" oninput="calc5()">
+          </div>
+          <div class="field">
+            <label>ZP zrazené zamestnancom (€) – Príl.4 r.10</label>
+            <input type="number" id="p5_2_zp" value="0" min="0" step="0.01" oninput="calc5()">
+            <span class="field-note">Zdravotné poistenie zrazené zo mzdy</span>
+          </div>
+          <div class="field">
+            <label>SP zrazené zamestnancom (€) – Príl.4 r.09</label>
+            <input type="number" id="p5_2_sp" value="0" min="0" step="0.01" oninput="calc5()">
+            <span class="field-note">Sociálne poistenie zrazené zo mzdy</span>
+          </div>
+        </div>
+        <div class="grid grid-3" style="margin-bottom:16px">
+          <div class="field">
+            <label>Preddavky na daň zrazené (€)</label>
+            <input type="number" id="p5_2_preddavky" value="0" min="0" step="0.01" oninput="calc5()">
+          </div>
+          <div class="field">
+            <label>Druh príjmu</label>
+            <select id="p5_2_druh" onchange="calc5()">
+              <option value="zam">Pracovný pomer (HPP/DPP/DPC)</option>
+              <option value="dohoda">Dohoda o vykonaní práce / pracovnej činnosti</option>
+              <option value="konatel">Konateľ / člen org. zložky</option>
+              <option value="ine">Iné §5</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Ročné zúčtovanie vykonané zamestnávateľom?</label>
+            <div class="radio-group">
+              <label class="radio-opt"><input type="radio" name="zuctovanie2" value="nie" checked> Nie</label>
+              <label class="radio-opt"><input type="radio" name="zuctovanie2" value="ano"> Áno</label>
+            </div>
+          </div>
+        </div>
+
+        <hr class="divider">
+
+        <!-- Súhrn §5 -->
+        <div id="vysledok_par5" style="margin-top:8px"></div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goPage(0)">← Späť</button>
+      <button class="btn btn-primary" onclick="goPage(2)">Pokračovať →</button>
     </div>
   </div>
 
-  <!-- Tabs -->
-  <div class="tabs" id="tabBar" style="display:none">
-    <button class="tab-btn active" data-tab="data">Dáta z Excelu</button>
-    <button class="tab-btn" data-tab="header">Hlavička DP</button>
-    <button class="tab-btn" data-tab="osoba">Oprávnená osoba</button>
-    <button class="tab-btn" data-tab="xml">XML náhľad</button>
+  <!-- PAGE 2 – §6 PODNIKANIE -->
+  <div class="page" id="page2">
+    <div class="section">
+      <div class="section-header"><span class="section-tag">VI. ODDIEL / TAB.1</span><span class="section-title">Príjmy z podnikania a inej samostatnej zárobkovej činnosti (§6)</span></div>
+      <div class="section-body">
+        <div class="info-box">Paušálne výdavky (§6 ods.10): <strong>60 % z príjmov, max. 20 000 € ročne</strong> + reálne zaplatené odvody. Podmienka: daňovník nebol platiteľom DPH (alebo bol iba časť roka).</div>
+
+        <div class="sub-header section-header" style="background:rgba(79,142,247,.06)">
+          <span class="section-tag" style="background:rgba(79,142,247,.15)">§6 ods.1</span>
+          <span class="section-title" style="font-size:12px">Živnosť – r.02 Tab.1</span>
+        </div>
+        <div class="grid grid-2" style="margin-top:16px;margin-bottom:16px">
+          <div class="field"><label>Príjmy zo živnosti (€)</label><input type="number" id="p_zivnost" value="0" min="0" step="0.01" oninput="calc()"></div>
+          <div class="field">
+            <label>Spôsob výdavkov</label>
+            <div class="radio-group">
+              <label class="radio-opt"><input type="radio" name="vydavky_zivnost" value="pausalne" checked onchange="toggleSkutocne()"> Paušálne 60%</label>
+              <label class="radio-opt"><input type="radio" name="vydavky_zivnost" value="skutocne" onchange="toggleSkutocne()"> Skutočné</label>
+            </div>
+          </div>
+        </div>
+        <div id="skutocne_zivnost" style="display:none;margin-bottom:16px">
+          <div class="field"><label>Skutočné výdavky zo živnosti (bez odvodov) (€)</label><input type="number" id="v_zivnost_skutocne" value="0" min="0" step="0.01" oninput="calc()"></div>
+        </div>
+
+        <hr class="divider">
+
+        <div class="sub-header section-header" style="background:rgba(124,92,191,.06)">
+          <span class="section-tag" style="background:rgba(124,92,191,.15)">§6 ods.2</span>
+          <span class="section-title" style="font-size:12px">Iná samostatná zárobková činnosť – r.03 Tab.1</span>
+        </div>
+        <div class="grid grid-2" style="margin-top:16px;margin-bottom:16px">
+          <div class="field"><label>Príjmy iná SZČO (€)</label><input type="number" id="p_ina" value="0" min="0" step="0.01" oninput="calc()"></div>
+          <div class="field">
+            <label>Spôsob výdavkov</label>
+            <div class="radio-group">
+              <label class="radio-opt"><input type="radio" name="vydavky_ina" value="pausalne" checked onchange="toggleSkutocneIna()"> Paušálne 60%</label>
+              <label class="radio-opt"><input type="radio" name="vydavky_ina" value="skutocne" onchange="toggleSkutocneIna()"> Skutočné</label>
+            </div>
+          </div>
+        </div>
+        <div id="skutocne_ina" style="display:none;margin-bottom:16px">
+          <div class="field"><label>Skutočné výdavky iná SZČO (bez odvodov) (€)</label><input type="number" id="v_ina_skutocne" value="0" min="0" step="0.01" oninput="calc()"></div>
+        </div>
+
+        <hr class="divider">
+
+        <div class="sub-header section-header" style="background:rgba(62,207,142,.06)">
+          <span class="section-tag" style="background:rgba(62,207,142,.15)">ODVODY</span>
+          <span class="section-title" style="font-size:12px">Zaplatené poistné – pod Tab.1 / Príloha č.4</span>
+        </div>
+        <div class="grid grid-3" style="margin-top:16px;margin-bottom:16px">
+          <div class="field">
+            <label>ZP zaplatené celkom 2025 (€) – r.13</label>
+            <input type="number" id="zdravotne" value="0" min="0" step="0.01" oninput="calc()">
+            <span class="field-note">Celkové preukázateľne zaplatené ZP (vrátane ročného vyrovnania)</span>
+          </div>
+          <div class="field">
+            <label>ZP preddavky zaplatené 2025 (€) – r.14</label>
+            <input type="number" id="zdravotne_pred" value="0" min="0" step="0.01" oninput="calc()">
+            <span class="field-note">Iba preddavky na ZP zaplatené v roku 2025 (r.14 ≤ r.13)</span>
+          </div>
+          <div class="field">
+            <label>Sociálne poistenie zaplatené 2025 (€) – r.11</label>
+            <input type="number" id="socialne" value="0" min="0" step="0.01" oninput="calc()">
+            <span class="field-note">Poistné SP zaplatené v roku 2025</span>
+          </div>
+        </div>
+        <div id="vysledok_prijmy" style="margin-top:8px"></div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goPage(1)">← Späť</button>
+      <button class="btn btn-primary" onclick="goPage(3)">Pokračovať →</button>
+    </div>
   </div>
 
-  <div class="content">
+  <!-- PAGE 3 – ODPOČTY -->
+  <div class="page" id="page3">
+    <div class="section">
+      <div class="section-header"><span class="section-tag">IX. ODDIEL</span><span class="section-title">Nezdaniteľné časti základu dane (§11)</span></div>
+      <div class="section-body">
+        <div class="info-box">NČZD na daňovníka za rok 2025: <strong>5 753,79 €</strong> (ak úhrn ZD ≤ 24 952,06 €). Pri vyššom ZD sa kráti podľa §11 ods.1 písm.a).</div>
+        <div class="grid grid-2" style="margin-bottom:16px">
+          <div class="field">
+            <label>Uplatniť NČZD na daňovníka? (r.30)</label>
+            <div class="radio-group">
+              <label class="radio-opt"><input type="radio" name="nczd_dankovnik" value="ano" checked onchange="calc()"> Áno</label>
+              <label class="radio-opt"><input type="radio" name="nczd_dankovnik" value="nie" onchange="calc()"> Nie (dôchodca)</label>
+            </div>
+          </div>
+          <div class="field">
+            <label>Výška dôchodku k 1.1.2025 (€) – r.29</label>
+            <input type="number" id="dochodok" value="0" min="0" step="0.01" oninput="calc()" placeholder="0 ak nie je dôchodca">
+            <span class="field-note">Vypĺňa len poberateľ dôchodku</span>
+          </div>
+        </div>
+        <hr class="divider">
+        <div class="grid grid-2" style="margin-bottom:16px">
+          <div class="field">
+            <label>Príspevky III. pilier 2025 (€)</label>
+            <input type="number" id="iii_pilier" value="0" min="0" max="180" step="0.01" oninput="calc()">
+            <span class="field-note">Max. odpočet: 180 €</span>
+          </div>
+          <div class="field">
+            <label>NČZD na manžel/ku (€) – r.31</label>
+            <input type="number" id="nczd_manzel" value="0" min="0" step="0.01" oninput="calc()">
+            <span class="field-note">Ak manžel/ka nemala vlastné príjmy &gt; 0 v roku 2025</span>
+          </div>
+        </div>
 
-    <!-- Upload area -->
-    <div id="uploadArea" class="upload-area"
-      ondrop="handleDrop(event)"
-      ondragover="handleDragOver(event)"
-      ondragleave="handleDragLeave(event)">
-      <div class="icon">📊</div>
-      <h2>Pretiahnite Excel súbor sem</h2>
-      <p>Výpočet_ZD_2025.xlsm alebo podobný súbor s hárkom „Pomôcka k DP"</p>
-      <label class="btn btn-blue">
-        Vybrať súbor
-        <input type="file" accept=".xlsx,.xlsm,.xls" onchange="handleFileInput(event)">
-      </label>
+        <hr class="divider">
+
+        <div class="sub-header section-header" style="background:rgba(175,250,150,.08)">
+          <span class="section-tag">§33</span>
+          <span class="section-title" style="font-size:12px">Daňový bonus na vyživované deti – r.33</span>
+        </div>
+        <div class="info-box" style="margin-top:16px">
+          Bonus 2025: dieťa <strong>do 6 rokov → 100 €/mes.</strong>, dieťa <strong>6–15 rokov → 50 €/mes.</strong>, dieťa <strong>15–18 rokov → 50 €/mes.</strong> Limitovaný na 55 % ZD z §5+§6. Deti nad 18 rokov <strong>nie je možné</strong> uplatniť.
+        </div>
+
+        <!-- DIEŤA 1 -->
+        <div class="child-card" id="child_card_1">
+          <div class="child-card-header">
+            <span class="section-tag" style="background:var(--purple);color:var(--green)">Dieťa 1</span>
+            <span style="font-size:12px;font-weight:600;color:var(--muted)">r.33 – riadok 1</span>
+          </div>
+          <div class="grid grid-2" style="margin-bottom:12px">
+            <div class="field">
+              <label>Priezvisko a meno dieťaťa</label>
+              <input type="text" id="d1_meno" placeholder="napr. Novák Adam" oninput="calcBonus()">
+            </div>
+            <div class="field">
+              <label>Rodné číslo</label>
+              <div style="display:flex;align-items:center;gap:6px">
+                <input type="text" id="d1_rc1" placeholder="XXXXXX" maxlength="6" style="width:100px;font-family:monospace" oninput="calcBonus()">
+                <span style="font-weight:700;color:var(--muted)">/</span>
+                <input type="text" id="d1_rc2" placeholder="XXXX" maxlength="4" style="width:70px;font-family:monospace" oninput="calcBonus()">
+              </div>
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:12px">
+            <label>Mesiace uplatňovania bonusu</label>
+            <div class="months-grid">
+              <label class="month-all"><input type="checkbox" id="d1_m0" onchange="toggleAllMonths(1,this)"> <span>1–12</span></label>
+              <label class="month-opt"><input type="checkbox" id="d1_m1" onchange="syncMonthAll(1)" value="1"> <span>1</span></label>
+              <label class="month-opt"><input type="checkbox" id="d1_m2" onchange="syncMonthAll(1)" value="2"> <span>2</span></label>
+              <label class="month-opt"><input type="checkbox" id="d1_m3" onchange="syncMonthAll(1)" value="3"> <span>3</span></label>
+              <label class="month-opt"><input type="checkbox" id="d1_m4" onchange="syncMonthAll(1)" value="4"> <span>4</span></label>
+              <label class="month-opt"><input type="checkbox" id="d1_m5" onchange="syncMonthAll(1)" value="5"> <span>5</span></label>
+              <label class="month-opt"><input type="checkbox" id="d1_m6" onchange="syncMonthAll(1)" value="6"> <span>6</span></label>
+              <label class="month-opt"><input type="checkbox" id="d1_m7" onchange="syncMonthAll(1)" value="7"> <span>7</span></label>
+              <label class="month-opt"><input type="checkbox" id="d1_m8" onchange="syncMonthAll(1)" value="8"> <span>8</span></label>
+              <label class="month-opt"><input type="checkbox" id="d1_m9" onchange="syncMonthAll(1)" value="9"> <span>9</span></label>
+              <label class="month-opt"><input type="checkbox" id="d1_m10" onchange="syncMonthAll(1)" value="10"> <span>10</span></label>
+              <label class="month-opt"><input type="checkbox" id="d1_m11" onchange="syncMonthAll(1)" value="11"> <span>11</span></label>
+              <label class="month-opt"><input type="checkbox" id="d1_m12" onchange="syncMonthAll(1)" value="12"> <span>12</span></label>
+            </div>
+          </div>
+          <div class="grid grid-2">
+            <div class="field">
+              <label>Vek dieťaťa (pre sadzbu bonusu)</label>
+              <select id="d1_vek" onchange="calcBonus()">
+                <option value="">— neuplatňujem —</option>
+                <option value="do6">Do 6 rokov (100 €/mes.)</option>
+                <option value="6_15">6 – 15 rokov (50 €/mes.)</option>
+                <option value="15_18">15 – 18 rokov (50 €/mes.)</option>
+              </select>
+            </div>
+            <div id="d1_bonus_out" style="display:flex;align-items:flex-end">
+              <div class="computed-row" style="flex:1;margin-top:0">
+                <span class="computed-label">Bonus dieťa 1</span>
+                <span class="computed-value" id="d1_bonus_val">0,00 €</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DIEŤA 2 -->
+        <div class="child-card" id="child_card_2" style="margin-top:16px">
+          <div class="child-card-header">
+            <span class="section-tag" style="background:var(--purple);color:var(--green)">Dieťa 2</span>
+            <span style="font-size:12px;font-weight:600;color:var(--muted)">r.33 – riadok 2</span>
+          </div>
+          <div class="grid grid-2" style="margin-bottom:12px">
+            <div class="field">
+              <label>Priezvisko a meno dieťaťa</label>
+              <input type="text" id="d2_meno" placeholder="napr. Nováková Eva" oninput="calcBonus()">
+            </div>
+            <div class="field">
+              <label>Rodné číslo</label>
+              <div style="display:flex;align-items:center;gap:6px">
+                <input type="text" id="d2_rc1" placeholder="XXXXXX" maxlength="6" style="width:100px;font-family:monospace" oninput="calcBonus()">
+                <span style="font-weight:700;color:var(--muted)">/</span>
+                <input type="text" id="d2_rc2" placeholder="XXXX" maxlength="4" style="width:70px;font-family:monospace" oninput="calcBonus()">
+              </div>
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:12px">
+            <label>Mesiace uplatňovania bonusu</label>
+            <div class="months-grid">
+              <label class="month-all"><input type="checkbox" id="d2_m0" onchange="toggleAllMonths(2,this)"> <span>1–12</span></label>
+              <label class="month-opt"><input type="checkbox" id="d2_m1" onchange="syncMonthAll(2)" value="1"> <span>1</span></label>
+              <label class="month-opt"><input type="checkbox" id="d2_m2" onchange="syncMonthAll(2)" value="2"> <span>2</span></label>
+              <label class="month-opt"><input type="checkbox" id="d2_m3" onchange="syncMonthAll(2)" value="3"> <span>3</span></label>
+              <label class="month-opt"><input type="checkbox" id="d2_m4" onchange="syncMonthAll(2)" value="4"> <span>4</span></label>
+              <label class="month-opt"><input type="checkbox" id="d2_m5" onchange="syncMonthAll(2)" value="5"> <span>5</span></label>
+              <label class="month-opt"><input type="checkbox" id="d2_m6" onchange="syncMonthAll(2)" value="6"> <span>6</span></label>
+              <label class="month-opt"><input type="checkbox" id="d2_m7" onchange="syncMonthAll(2)" value="7"> <span>7</span></label>
+              <label class="month-opt"><input type="checkbox" id="d2_m8" onchange="syncMonthAll(2)" value="8"> <span>8</span></label>
+              <label class="month-opt"><input type="checkbox" id="d2_m9" onchange="syncMonthAll(2)" value="9"> <span>9</span></label>
+              <label class="month-opt"><input type="checkbox" id="d2_m10" onchange="syncMonthAll(2)" value="10"> <span>10</span></label>
+              <label class="month-opt"><input type="checkbox" id="d2_m11" onchange="syncMonthAll(2)" value="11"> <span>11</span></label>
+              <label class="month-opt"><input type="checkbox" id="d2_m12" onchange="syncMonthAll(2)" value="12"> <span>12</span></label>
+            </div>
+          </div>
+          <div class="grid grid-2">
+            <div class="field">
+              <label>Vek dieťaťa (pre sadzbu bonusu)</label>
+              <select id="d2_vek" onchange="calcBonus()">
+                <option value="">— neuplatňujem —</option>
+                <option value="do6">Do 6 rokov (100 €/mes.)</option>
+                <option value="6_15">6 – 15 rokov (50 €/mes.)</option>
+                <option value="15_18">15 – 18 rokov (50 €/mes.)</option>
+              </select>
+            </div>
+            <div id="d2_bonus_out" style="display:flex;align-items:flex-end">
+              <div class="computed-row" style="flex:1;margin-top:0">
+                <span class="computed-label">Bonus dieťa 2</span>
+                <span class="computed-value" id="d2_bonus_val">0,00 €</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="warn-box">⚠️ Od roku 2025: daňový bonus na deti staršie ako 18 rokov <strong>nie je možné</strong> uplatniť. Bonus je limitovaný na 55 % ZD z §5+§6.</div>
+        <div id="vysledok_odpcty" style="margin-top:16px"></div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goPage(2)">← Späť</button>
+      <button class="btn btn-primary" onclick="goPage(4);buildSummary()">Zobraziť súhrn →</button>
+    </div>
+  </div>
+
+  <!-- PAGE 4 – SÚHRN & EXPORT -->
+  <div class="page" id="page4">
+    <div class="section">
+      <div class="section-header"><span class="section-tag">VÝPOČET</span><span class="section-title">Súhrn a výsledná daňová povinnosť</span></div>
+      <div class="section-body"><table class="sum-table" id="sumTable"></table></div>
     </div>
 
-    <!-- Tab panels -->
-    <div id="tab-data" class="tab-content" style="display:none"></div>
-    <div id="tab-header" class="tab-content" style="display:none"></div>
-    <div id="tab-osoba" class="tab-content" style="display:none"></div>
-    <div id="tab-xml" class="tab-content" style="display:none"></div>
+    <div class="section">
+      <div class="section-header"><span class="section-tag">§50</span><span class="section-title">Asignácia dane (2 % / 3 %)</span></div>
+      <div class="section-body">
+        <div class="info-box">Môžete poukázať <strong>2 %</strong> (alebo <strong>3 %</strong> ak ste odpracovali min. 40 hodín dobrovoľníctva) zo zaplatenej dane prijímateľovi z registra Notárskej komory SR.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+          <div class="field">
+            <label>Percento asignácie</label>
+            <select id="asig_percento" oninput="calcAsig()">
+              <option value="0">— neuplatňujem §50 —</option>
+              <option value="2">2 % zo zaplatenej dane</option>
+              <option value="3">3 % (dobrovoľník – min. 40 hod.)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>IČO prijímateľa</label>
+            <input type="text" id="asig_ico" placeholder="napr. 12345678" maxlength="12" oninput="calcAsig()">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+          <div class="field">
+            <label>Obchodné meno prijímateľa</label>
+            <input type="text" id="asig_nazov" placeholder="napr. Nadácia XY" oninput="calcAsig()">
+          </div>
+          <div class="field">
+            <label>Súhlas so zaslaním údajov prijímateľovi</label>
+            <select id="asig_suhlas">
+              <option value="0">Nesúhlasím</option>
+              <option value="1">Súhlasím</option>
+            </select>
+          </div>
+        </div>
+        <div id="asig_vysledok" style="margin-top:8px;"></div>
 
+        <div id="asig_neuplatnujem_box" style="margin-top:12px;padding:10px 14px;background:#f0faf0;border:1px solid #b8dfc8;border-radius:8px;display:flex;align-items:center;gap:10px;">
+          <input type="checkbox" id="asig_check_neupl" checked disabled style="width:16px;height:16px;accent-color:#321941;">
+          <label style="font-size:13px;color:#2a5c3a;margin:0;">neuplatňujem postup podľa <strong>§ 50 zákona</strong> (r.151 – bez asignácie)</label>
+        </div>
+        <div id="asig_uplatnujem_box" style="display:none;margin-top:12px;padding:10px 14px;background:#f7f6f9;border:1px solid #d4c8e8;border-radius:8px;display:flex;align-items:center;gap:10px;">
+          <input type="checkbox" checked disabled style="width:16px;height:16px;accent-color:#321941;">
+          <label style="font-size:13px;color:#321941;margin:0;">uplatňujem postup podľa <strong>§ 50 zákona</strong> – asignácia bude v XML (r.151 + r.152)</label>
+        </div>
+
+        <div style="margin-top:10px;padding:10px 14px;background:#f0f0fa;border:1px solid #c8c8e8;border-radius:8px;display:flex;align-items:center;gap:10px;">
+          <input type="checkbox" checked disabled style="width:16px;height:16px;accent-color:#321941;">
+          <label style="font-size:13px;color:#3a3a6a;margin:0;">neuplatňujem postup podľa <strong>§ 50aa zákona</strong> (r.153 – poukázanie dane rodičom)</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header"><span class="section-tag">r.154</span><span class="section-title">Počet príloh</span></div>
+      <div class="section-body">
+        <div class="info-box">Pre štandardné DPFO Typ B je počet príloh <strong>6</strong> (prílohy č. 1–4 sú vždy súčasťou). Ak prikladáte ďalšie prílohy, upravte číslo.</div>
+        <div class="field" style="max-width:200px">
+          <label>Počet príloh (r.154)</label>
+          <input type="number" id="r154_pocet" value="6" min="6" max="99" step="1">
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header"><span class="section-tag">§</span><span class="section-title">Celkové daňové zaťaženie</span></div>
+      <div class="section-body">
+        <div id="burden_wrap" style="display:flex;align-items:center;gap:32px;flex-wrap:wrap">
+          <div style="position:relative;width:140px;height:140px;flex-shrink:0">
+            <canvas id="burdenChart" width="140" height="140"></canvas>
+            <div id="burdenPct" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center">
+              <div style="font-size:22px;font-weight:800;color:var(--purple)">—</div>
+              <div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.05em;text-transform:uppercase">zaťaženie</div>
+            </div>
+          </div>
+          <div id="burdenDetail" style="flex:1;min-width:200px"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header"><span class="section-tag">XML</span><span class="section-title">Exportný súbor pre eDane / PFS (DPFOBv25)</span></div>
+      <div class="section-body">
+        <div class="info-box">Vygenerovaný XML súbor je kompatibilný so schémou <strong>DPFOBv25</strong>. Nahrajte ho priamo na Portál finančnej správy alebo do aplikácie eDane.</div>
+        <div class="xml-output" id="xmlOut">— generuje sa automaticky —</div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goPage(3)">← Späť</button>
+      <button class="btn btn-green" onclick="generateXML()">⬇ Stiahnuť XML</button>
+      <button class="btn btn-purple" onclick="generatePDF()">⬇ Stiahnuť PDF súhrn</button>
+    </div>
   </div>
 
-  <!-- JS modules (order matters) -->
-  <script src="js/constants.js"></script>
-  <script src="js/excel-parser.js"></script>
-  <script src="js/xml-generator.js"></script>
-  <script src="js/app.js"></script>
+</div><!-- /container -->
 
+<script>
+// ——— NAV ———
+let currentPage = 0;
+function goPage(n) {
+  document.querySelectorAll('.page').forEach((p,i) => p.classList.toggle('active', i===n));
+  document.querySelectorAll('.step').forEach((s,i) => {
+    s.classList.remove('active','done');
+    if(i===n) s.classList.add('active');
+    if(i<n) s.classList.add('done');
+  });
+  currentPage = n;
+  calc5(); calc();
+}
+
+// ——— TOGGLES ———
+function toggleSkutocne() {
+  const val = document.querySelector('[name="vydavky_zivnost"]:checked')?.value;
+  document.getElementById('skutocne_zivnost').style.display = val==='skutocne' ? 'block' : 'none';
+  calc();
+}
+function toggleSkutocneIna() {
+  const val = document.querySelector('[name="vydavky_ina"]:checked')?.value;
+  document.getElementById('skutocne_ina').style.display = val==='skutocne' ? 'block' : 'none';
+  calc();
+}
+
+// ——— HELPERS ———
+const v = id => parseFloat(document.getElementById(id)?.value)||0;
+const rv = name => document.querySelector(`[name="${name}"]:checked`)?.value;
+const fmt = n => n.toFixed(2).replace('.',',')+' €';
+let C = {};
+
+// ——— MONTH HELPERS ———
+function toggleAllMonths(d, cb) {
+  for(let m=1;m<=12;m++) {
+    const el = document.getElementById(`d${d}_m${m}`);
+    if(el) el.checked = cb.checked;
+  }
+  calcBonus(); calc();
+}
+function syncMonthAll(d) {
+  const all = [1,2,3,4,5,6,7,8,9,10,11,12].every(m => document.getElementById(`d${d}_m${m}`)?.checked);
+  const cb = document.getElementById(`d${d}_m0`);
+  if(cb) cb.checked = all;
+  calcBonus(); calc();
+}
+function getChildMonths(d) {
+  let cnt = 0;
+  for(let m=1;m<=12;m++) if(document.getElementById(`d${d}_m${m}`)?.checked) cnt++;
+  return cnt;
+}
+function calcBonusRaw() {
+  let total = 0;
+  for(let d=1;d<=2;d++) {
+    const vek = document.getElementById(`d${d}_vek`)?.value || '';
+    if(!vek) continue;
+    const mes = getChildMonths(d);
+    const sadzba = vek==='do6' ? 100 : 50;
+    total += sadzba * mes;
+  }
+  return total;
+}
+function calcBonus() {
+  for(let d=1;d<=2;d++) {
+    const vek = document.getElementById(`d${d}_vek`)?.value || '';
+    const mes = getChildMonths(d);
+    const sadzba = vek==='do6' ? 100 : vek ? 50 : 0;
+    const val = document.getElementById(`d${d}_bonus_val`);
+    if(val) val.textContent = fmt(sadzba * mes);
+  }
+  calc();
+}
+
+// ——— §5 CALC ———
+function calc5() {
+  const p1 = v('p5_1_prijmy'), zp1 = v('p5_1_zp'), sp1 = v('p5_1_sp'), pred1 = v('p5_1_preddavky');
+  const p2 = v('p5_2_prijmy'), zp2 = v('p5_2_zp'), sp2 = v('p5_2_sp'), pred2 = v('p5_2_preddavky');
+  const druh1 = document.getElementById('p5_1_druh')?.value || 'zam';
+  const druh2 = document.getElementById('p5_2_druh')?.value || 'zam';
+  const celk_p5 = p1 + p2;
+  const celk_zp5 = zp1 + zp2;
+  const celk_sp5 = sp1 + sp2;
+  const celk_poi5 = celk_zp5 + celk_sp5;
+  const celk_pred5 = pred1 + pred2;
+  const czd_5 = Math.max(0, celk_p5 - celk_poi5);
+  // r.36a = príjmy z dohôd o prácach vykonávaných mimo pracovného pomeru
+  const r36a_val = (druh1 === 'dohoda' ? p1 : 0) + (druh2 === 'dohoda' ? p2 : 0);
+
+  C.celk_p5 = celk_p5;
+  C.celk_zp5 = celk_zp5;
+  C.celk_sp5 = celk_sp5;
+  C.celk_poi5 = celk_poi5;
+  C.celk_pred5 = celk_pred5;
+  C.czd_5 = czd_5;
+  C.r36a = r36a_val;
+
+  const el = document.getElementById('vysledok_par5');
+  if(el) el.innerHTML = `
+    <div class="computed-row"><span class="computed-label">Príjmy §5 spolu (r.36)</span><span class="computed-value">${fmt(celk_p5)}</span></div>
+    ${r36a_val > 0 ? `<div class="computed-row"><span class="computed-label">z toho dohody (r.36a)</span><span class="computed-value">${fmt(r36a_val)}</span></div>` : ''}
+    <div class="computed-row"><span class="computed-label">SP zrazené §5 (Príl.4 r.09)</span><span class="computed-value">${fmt(celk_sp5)}</span></div>
+    <div class="computed-row"><span class="computed-label">ZP zrazené §5 (Príl.4 r.10)</span><span class="computed-value">${fmt(celk_zp5)}</span></div>
+    <div class="computed-row"><span class="computed-label">Povinné poistné celkom (r.37 / Príl.4 r.08)</span><span class="computed-value">${fmt(celk_poi5)}</span></div>
+    <div class="computed-row"><span class="computed-label">Preddavky zrazené (r.39)</span><span class="computed-value">${fmt(celk_pred5)}</span></div>
+    <div class="computed-row"><span class="computed-label">ČZD §5 (r.38)</span><span class="computed-value highlight">${fmt(czd_5)}</span></div>
+  `;
+  calc();
+}
+
+// ——— MAIN CALC ———
+function calc() {
+  // §5 values (may already be in C from calc5)
+  const czd_5 = C.czd_5 || 0;
+
+  // §6
+  const p_zivnost = v('p_zivnost');
+  const p_ina = v('p_ina');
+  const zdravotne = v('zdravotne');
+  const zdravotne_pred = Math.min(v('zdravotne_pred'), v('zdravotne')); // r.14 ≤ r.13
+  const socialne = v('socialne');
+  const celkove_odvody = zdravotne + socialne;
+
+  // Paušálne výdavky: 60% z príjmov, max 20 000 € ročne (§6 ods.10)
+  let vydavky_zivnost = rv('vydavky_zivnost')==='pausalne' ? Math.min(p_zivnost*0.60, 20000) : v('v_zivnost_skutocne');
+  let vydavky_ina     = rv('vydavky_ina')==='pausalne'     ? Math.min(p_ina*0.60, 20000)     : v('v_ina_skutocne');
+
+  const celk_vydavky_6 = vydavky_zivnost + vydavky_ina + celkove_odvody;
+  const celk_prijmy_6 = p_zivnost + p_ina;
+  let czd_6 = celk_prijmy_6 - celk_vydavky_6;
+  if(czd_6 < 0) czd_6 = 0;
+
+  // Úhrn aktívnych ZD (§5 + §6 ods.1+2)
+  const uhrnZD_aktivny = czd_5 + czd_6;
+
+  // NČZD na daňovníka – počíta sa z úhrnu aktívnych ZD
+  const NCZD_PLNA = 5753.79;
+  const NCZD_LIMIT = 24952.06;
+  let nczd_dankovnik_suma = 0;
+  if(rv('nczd_dankovnik')==='ano') {
+    const doc = v('dochodok');
+    if(uhrnZD_aktivny <= NCZD_LIMIT) {
+      nczd_dankovnik_suma = Math.max(0, NCZD_PLNA - doc);
+    } else {
+      const krat = 9677.73 - uhrnZD_aktivny/4;
+      nczd_dankovnik_suma = Math.max(0, krat - doc);
+    }
+  }
+
+  const iii = Math.min(v('iii_pilier'), 180);
+  const nczd_manzel = v('nczd_manzel');
+  const celk_nczd = nczd_dankovnik_suma + iii + nczd_manzel;
+
+  // ——— NČZD sa odpočítava najprv od §5, zvyšok od §6 ods.1+2 (§11 ods.12) ———
+  let nczd_zostatok_pre_5 = celk_nczd;
+  let zd_5_po_nczd = Math.max(0, czd_5 - nczd_zostatok_pre_5);
+  let nczd_zostatok_pre_6 = Math.max(0, celk_nczd - czd_5);
+  let zd_6_po_nczd = Math.max(0, czd_6 - nczd_zostatok_pre_6);
+
+  // ——— §4 ods.1 písm. a): ZD = §5 po NČZD → sadzba 19%/25% (hranica 48 441,43 €) ———
+  const PASOM_A = 48441.43;
+  const zd_a = zd_5_po_nczd; // §5 po NČZD (§6 ods.3+4 a §8 tu nemáme)
+  let dan_a = zd_a <= PASOM_A ? zd_a * 0.19 : PASOM_A * 0.19 + (zd_a - PASOM_A) * 0.25;
+
+  // ——— §4 ods.1 písm. b): ZD = §6 ods.1+2 po NČZD → sadzba 15% ak príjmy ≤ 100 000 €, inak 19%/25% ———
+  const zd_b = zd_6_po_nczd;
+  let dan_b;
+  if (celk_prijmy_6 <= 100000) {
+    dan_b = zd_b * 0.15; // mikrodaňovník / príjmy do 100 000 €
+  } else {
+    dan_b = zd_b <= PASOM_A ? zd_b * 0.19 : PASOM_A * 0.19 + (zd_b - PASOM_A) * 0.25;
+  }
+
+  const dan = dan_a + dan_b;
+  // Celkový ZD pre zobrazenie v súhrne
+  const zd_po_nczd = zd_a + zd_b;
+  const sadzba_b = celk_prijmy_6 <= 100000 ? '15%' : '19%/25%';
+  C.sadzba_b = sadzba_b;
+  C.dan_a = dan_a;
+  C.dan_b = dan_b;
+  C.zd_a = zd_a;
+  C.zd_b = zd_b;
+
+  // Daňový bonus – z nových polí dieťa 1+2
+  const bonus_limit = uhrnZD_aktivny * 0.55;
+  const bonus_raw = calcBonusRaw();
+  const bonus = Math.min(bonus_raw, bonus_limit);
+
+  // Výsledná daň
+  let dan_po_bonuse = Math.max(0, dan - bonus);
+
+  // Zápočet preddavkov §5
+  const celk_pred5 = C.celk_pred5 || 0;
+  const dan_na_uhradu = Math.max(0, dan_po_bonuse - celk_pred5);
+  const preplatok = Math.max(0, celk_pred5 - dan_po_bonuse);
+
+  // Cache
+  Object.assign(C, {
+    p_zivnost, p_ina, celk_prijmy_6,
+    vydavky_zivnost, vydavky_ina, celkove_odvody, celk_vydavky_6,
+    czd_6, czd_5, uhrnZD_aktivny,
+    nczd_dankovnik_suma, iii, nczd_manzel, celk_nczd,
+    zd_po_nczd, dan, bonus_raw, bonus_limit, bonus,
+    dan_po_bonuse, dan_na_uhradu, preplatok,
+    zdravotne, zdravotne_pred, socialne
+  });
+
+  // Live feedback on §6 page
+  const r1 = document.getElementById('vysledok_prijmy');
+  if(r1) r1.innerHTML = `
+    <div class="computed-row"><span class="computed-label">Príjmy §6 spolu (r.10)</span><span class="computed-value">${fmt(celk_prijmy_6)}</span></div>
+    <div class="computed-row"><span class="computed-label">Výdavky §6 (paušál + odvody)</span><span class="computed-value">${fmt(celk_vydavky_6)}</span></div>
+    <div class="computed-row"><span class="computed-label">ČZD §6 (r.55)</span><span class="computed-value highlight">${fmt(czd_6)}</span></div>
+    <div class="computed-row"><span class="computed-label">Príl.č.4 r.11 – SP zaplatené (§6)</span><span class="computed-value">${fmt(socialne)}</span></div>
+    <div class="computed-row"><span class="computed-label">Príl.č.4 r.13 – ZP zaplatené (§6)</span><span class="computed-value">${fmt(zdravotne)}</span></div>
+    <div class="computed-row"><span class="computed-label">Príl.č.4 r.14 – preddavky ZP (§6)</span><span class="computed-value">${fmt(zdravotne_pred)}</span></div>
+  `;
+
+  // Live feedback on odpočty page
+  const r2 = document.getElementById('vysledok_odpcty');
+  if(r2) r2.innerHTML = `
+    <div class="computed-row"><span class="computed-label">ČZD §5</span><span class="computed-value">${fmt(czd_5)}</span></div>
+    <div class="computed-row"><span class="computed-label">ČZD §6 ods.1+2</span><span class="computed-value">${fmt(czd_6)}</span></div>
+    <div class="computed-row"><span class="computed-label">NČZD celkom</span><span class="computed-value">${fmt(celk_nczd)}</span></div>
+    <div class="computed-row"><span class="computed-label">ZD §4a (§5) po NČZD → 19%/25%</span><span class="computed-value">${fmt(zd_a)}</span></div>
+    <div class="computed-row"><span class="computed-label">ZD §4b (§6 ods.1+2) po NČZD → ${sadzba_b}</span><span class="computed-value">${fmt(zd_b)}</span></div>
+    <div class="computed-row"><span class="computed-label">Daň §4a (r.81)</span><span class="computed-value">${fmt(dan_a)}</span></div>
+    <div class="computed-row"><span class="computed-label">Daň §4b (r.96)</span><span class="computed-value">${fmt(dan_b)}</span></div>
+    <div class="computed-row"><span class="computed-label">Daň spolu (r.105)</span><span class="computed-value">${fmt(dan)}</span></div>
+    <div class="computed-row"><span class="computed-label">Daňový bonus na deti</span><span class="computed-value">${fmt(bonus)}</span></div>
+    <div class="computed-row"><span class="computed-label">Daň po bonuse</span><span class="computed-value">${fmt(dan_po_bonuse)}</span></div>
+    <div class="computed-row"><span class="computed-label">Zrazené preddavky §5</span><span class="computed-value">${fmt(celk_pred5)}</span></div>
+    <div class="computed-row"><span class="computed-label">DAŇ NA ÚHRADU / PREPLATOK</span><span class="computed-value highlight">${dan_na_uhradu > 0 ? fmt(dan_na_uhradu)+' (na úhradu)' : fmt(preplatok)+' (preplatok)'}</span></div>
+  `;
+}
+
+// ——— SUMMARY ———
+function buildSummary() {
+  calc5(); calc();
+  const t = document.getElementById('sumTable');
+  t.innerHTML = `
+    <tr class="section-sep"><td colspan="3">Príjmy zo závislej činnosti §5</td></tr>
+    <tr><td>r.36</td><td>Príjmy §5 brutto spolu</td><td>${fmt(C.celk_p5)}</td></tr>
+    ${(C.r36a||0) > 0 ? `<tr><td>r.36a</td><td>z toho dohody</td><td>${fmt(C.r36a)}</td></tr>` : ''}
+    <tr><td>r.37</td><td>Povinné poistné (ZP+SP) zrazené – Príl.4 r.08</td><td>${fmt(C.celk_poi5)}</td></tr>
+    <tr><td>r.38</td><td>ČZD §5</td><td>${fmt(C.czd_5)}</td></tr>
+    <tr><td>r.39</td><td>Zrazené preddavky na daň</td><td>${fmt(C.celk_pred5)}</td></tr>
+    <tr class="section-sep"><td colspan="3">Príjmy z podnikania §6</td></tr>
+    <tr><td>r.02</td><td>Príjmy zo živnosti (§6 ods.1)</td><td>${fmt(C.p_zivnost)}</td></tr>
+    <tr><td>r.03</td><td>Príjmy iná SZČO (§6 ods.2)</td><td>${fmt(C.p_ina)}</td></tr>
+    <tr><td>r.10</td><td>Príjmy §6 spolu</td><td>${fmt(C.celk_prijmy_6)}</td></tr>
+    <tr><td></td><td>Výdavky (paušál 60%)</td><td>${fmt(C.vydavky_zivnost+C.vydavky_ina)}</td></tr>
+    <tr><td>Príl.4 r.11</td><td>Sociálne poistenie §6</td><td>${fmt(C.socialne)}</td></tr>
+    <tr><td>Príl.4 r.13</td><td>Zdravotné poistenie §6 (celkom)</td><td>${fmt(C.zdravotne)}</td></tr>
+    <tr><td>Príl.4 r.14</td><td>ZP §6 – preddavky</td><td>${fmt(C.zdravotne_pred || 0)}</td></tr>
+    <tr><td>r.55</td><td>ČZD §6</td><td>${fmt(C.czd_6)}</td></tr>
+    <tr class="section-sep"><td colspan="3">Nezdaniteľné časti (§11)</td></tr>
+    <tr><td>r.30</td><td>NČZD na daňovníka</td><td>${fmt(C.nczd_dankovnik_suma)}</td></tr>
+    <tr><td>r.31</td><td>NČZD na manžel/ku</td><td>${fmt(C.nczd_manzel)}</td></tr>
+    <tr><td></td><td>III. pilier (max 180 €)</td><td>${fmt(C.iii)}</td></tr>
+    <tr class="section-sep"><td colspan="3">Výpočet dane</td></tr>
+    <tr><td>r.78</td><td>ZD §4a (§5 po NČZD) → 19%/25%</td><td>${fmt(C.zd_a)}</td></tr>
+    <tr><td>r.81</td><td>Daň zo ZD §4a</td><td>${fmt(C.dan_a)}</td></tr>
+    <tr><td>r.92</td><td>ZD §4b (§6 ods.1+2 po NČZD) → ${C.sadzba_b}</td><td>${fmt(C.zd_b)}</td></tr>
+    <tr><td>r.96</td><td>Daň zo ZD §4b</td><td>${fmt(C.dan_b)}</td></tr>
+    <tr><td>r.105</td><td>Daň spolu (r.81 + r.96 + r.90)</td><td>${fmt(C.dan)}</td></tr>
+    <tr><td>r.107</td><td>Daňový bonus na deti</td><td>−${fmt(C.bonus)}</td></tr>
+    <tr><td></td><td>Daň po bonuse</td><td>${fmt(C.dan_po_bonuse)}</td></tr>
+    <tr><td>r.112</td><td>Zrazené preddavky §5</td><td>−${fmt(C.celk_pred5)}</td></tr>
+    ${C.dan_na_uhradu > 0
+      ? `<tr class="total"><td>r.135</td><td><strong>DAŇ NA ÚHRADU</strong></td><td>${fmt(C.dan_na_uhradu)}</td></tr>`
+      : `<tr class="total"><td>r.136</td><td><strong>DAŇOVÝ PREPLATOK</strong></td><td>${fmt(C.preplatok)}</td></tr>`
+    }
+  `;
+  generateXMLPreview();
+  drawBurdenChart();
+}
+
+// ——— KOLÁČOVÝ GRAF ZAŤAŽENIA ———
+function drawBurdenChart() {
+  const prijmy = (C.celk_p5||0) + (C.celk_prijmy_6||0);
+  const dan    = C.dan_po_bonuse || 0;
+  const zdravotne = parseFloat(document.getElementById('zdravotne')?.value) || 0;
+  const socialne  = parseFloat(document.getElementById('socialne')?.value)  || 0;
+  // §5 odvody (zrazené zamestnávateľom, nie SZČO)
+  const poi5   = C.celk_poi5 || 0;
+  const statCelkom = dan + zdravotne + socialne + poi5;
+  const ciste  = Math.max(0, prijmy - statCelkom);
+  const pct    = prijmy > 0 ? (statCelkom / prijmy * 100) : 0;
+
+  // Canvas donut
+  const canvas = document.getElementById('burdenChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const cx = 70, cy = 70, r = 58, rIn = 38;
+  ctx.clearRect(0, 0, 140, 140);
+
+  const segments = [
+    { val: dan,        color: '#321941', label: 'Daň z príjmu' },
+    { val: zdravotne,  color: '#6b3d8a', label: 'Zdravotné' },
+    { val: socialne,   color: '#9b5cc4', label: 'Sociálne' },
+    { val: poi5,       color: '#c49de0', label: 'Odvody §5' },
+    { val: ciste,      color: '#AFFA96', label: 'Čistý príjem' },
+  ].filter(s => s.val > 0);
+
+  if(segments.length === 0 || prijmy === 0) {
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+    ctx.fillStyle = '#e4dff0'; ctx.fill();
+    ctx.beginPath(); ctx.arc(cx,cy,rIn,0,Math.PI*2);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    document.getElementById('burdenPct').innerHTML = '<div style="font-size:14px;font-weight:800;color:#7a6b90">—</div><div style="font-size:10px;font-weight:700;color:#7a6b90;text-transform:uppercase;letter-spacing:.05em">zaťaženie</div>';
+    document.getElementById('burdenDetail').innerHTML = '';
+    return;
+  }
+
+  const total = segments.reduce((a,s) => a+s.val, 0);
+  let angle = -Math.PI/2;
+  segments.forEach(s => {
+    const slice = (s.val / total) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, angle, angle + slice);
+    ctx.closePath();
+    ctx.fillStyle = s.color;
+    ctx.fill();
+    angle += slice;
+  });
+  // donut hole
+  ctx.beginPath(); ctx.arc(cx,cy,rIn,0,Math.PI*2);
+  ctx.fillStyle = '#fff'; ctx.fill();
+
+  // center pct
+  document.getElementById('burdenPct').innerHTML =
+    `<div style="font-size:${pct>=10?'20':'22'}px;font-weight:800;color:var(--purple)">${pct.toFixed(1)}%</div><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">zaťaženie</div>`;
+
+  // legend
+  const fmt2 = v => v.toLocaleString('sk-SK',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+  document.getElementById('burdenDetail').innerHTML = `
+    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">
+      Príjem spolu: <strong style="color:var(--purple)">${fmt2(prijmy)}</strong>
+    </div>
+    ${segments.map(s=>`
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+        <div style="width:10px;height:10px;border-radius:3px;background:${s.color};flex-shrink:0"></div>
+        <div style="flex:1;font-size:12px;font-weight:500;color:var(--text)">${s.label}</div>
+        <div style="font-size:12px;font-weight:700;color:var(--purple);font-variant-numeric:tabular-nums">${fmt2(s.val)}</div>
+        <div style="font-size:11px;color:var(--muted);width:38px;text-align:right">${(s.val/prijmy*100).toFixed(1)}%</div>
+      </div>`).join('')}
+    <div style="border-top:1.5px solid var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:12px;font-weight:700;color:var(--purple)">Odvody + daň celkom</span>
+      <span style="font-size:13px;font-weight:800;color:var(--purple)">${fmt2(statCelkom)} <span style="color:var(--muted);font-size:11px">(${pct.toFixed(1)}%)</span></span>
+    </div>
+  `;
+}
+function calcAsig() {
+  const perc = parseFloat(document.getElementById('asig_percento').value) || 0;
+  const el = document.getElementById('asig_vysledok');
+  const boxNeupl = document.getElementById('asig_neuplatnujem_box');
+  const boxUpl   = document.getElementById('asig_uplatnujem_box');
+  if(!perc) {
+    el.innerHTML = '';
+    if(boxNeupl) boxNeupl.style.display = 'flex';
+    if(boxUpl)   boxUpl.style.display   = 'none';
+    buildSummary(); return;
+  }
+  if(boxNeupl) boxNeupl.style.display = 'none';
+  if(boxUpl)   boxUpl.style.display   = 'flex';
+  const dan = C.dan_po_bonuse || 0;
+  const suma = Math.max(3, Math.round(dan * perc) / 100);
+  el.innerHTML = `<div class="computed-row"><span class="computed-label">Suma asignácie (r.152) – min. 3 €</span><span class="computed-value highlight">${suma.toFixed(2)} €</span></div>`;
+  buildSummary();
+}
+
+
+function generateXMLPreview() {
+  const xml = buildXML();
+  const el = document.getElementById('xmlOut');
+  if(!el) return;
+  el.innerHTML = xml
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/&lt;(\/?[\w:]+)/g,'<span style="color:#f75f5f">&lt;$1</span>')
+    .replace(/"([^"]*)"/g,'"<span style="color:#3ecf8e">$1</span>"');
+}
+
+function buildXML() {
+  const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const n2 = n => (n && n !== 0) ? Number(n).toFixed(2) : '';
+  const n2z = n => Number(n||0).toFixed(2); // vždy číslo aj ak 0
+  const dnes = new Date();
+  const datumVyhl = `${String(dnes.getDate()).padStart(2,'0')}.${String(dnes.getMonth()+1).padStart(2,'0')}.${dnes.getFullYear()}`;
+
+  const dic    = document.getElementById('dic').value;
+  const meno   = document.getElementById('meno').value;
+  const priezv = document.getElementById('priezvisko').value;
+  const titul  = document.getElementById('titul_pred').value;
+  const titulZ = document.getElementById('titul_za').value;
+  const ulica  = document.getElementById('ulica').value;
+  const cislo  = document.getElementById('cislo').value;
+  const psc    = document.getElementById('psc').value.replace(/\s/g,'');
+  const obec   = document.getElementById('obec').value;
+  const tel    = document.getElementById('telefon').value;
+  const email  = document.getElementById('email').value;
+  const nace   = document.getElementById('nace').value || '';
+  // NACE rozdeliť na k1/k2/k3 napr. "43.12.0" -> 43, 12, 0
+  const naceParts = nace.replace(/\s/g,'').split('.');
+  const naceK1 = naceParts[0]||'';
+  const naceK2 = naceParts[1]||'';
+  const naceK3 = naceParts[2]||'';
+
+  const druhDP = document.getElementById('druhDP').value;
+  const rdp = druhDP==='DP'?'1':'0';
+  const odp = druhDP==='ODP'?'1':'0';
+  const ddp = druhDP==='DDP'?'1':'0';
+
+  const getVal = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+  const r154 = parseInt(getVal('r154_pocet')) || 6;
+  const asigPerc = parseFloat(getVal('asig_percento')) || 0;
+  const asigIco  = getVal('asig_ico').trim();
+  const asigNazov= getVal('asig_nazov').trim();
+  const asigSuhlas = getVal('asig_suhlas') || '0';
+  const asigSuma = asigPerc > 0 ? Math.max(3, Math.round((C.dan_po_bonuse||0) * asigPerc) / 100).toFixed(2) : '';
+  const splnam3 = asigPerc === 3 ? 1 : 0;
+  const neuplatnujem = asigPerc === 0 ? 1 : 0;
+  const pausalne_zivnost = rv('vydavky_zivnost')==='pausalne' ? 1 : 0;
+  const pausalne_ina     = rv('vydavky_ina')==='pausalne' ? 1 : 0;
+  const pausalne = (pausalne_zivnost || pausalne_ina) ? 1 : 0;
+
+  // Výdavky paušál pre tabulka1b (60% zo živnosti)
+  const vydPauZivnost = pausalne_zivnost ? Math.min(C.p_zivnost*0.60, 20000) : 0;
+  const vydPauIna     = pausalne_ina     ? Math.min(C.p_ina*0.60, 20000)     : 0;
+
+  // §5 preddavky – len ak > 0
+  const r36  = C.celk_p5   > 0 ? n2(C.celk_p5)   : '';
+  const r36a = (C.r36a || 0) > 0 ? n2(C.r36a) : '';
+  const r37  = C.celk_poi5 > 0 ? n2(C.celk_poi5) : '';
+  const r38  = C.czd_5     > 0 ? n2(C.czd_5)     : '';
+  const r39p = C.celk_pred5> 0 ? n2(C.celk_pred5): '';
+
+  return `<?xml version="1.0" encoding="utf-8"?>
+<dokument>
+<hlavicka>
+\t<dic>${esc(dic)}</dic>
+\t<datumNarodenia></datumNarodenia>
+\t<typDP>
+\t\t<rdp>${rdp}</rdp>
+\t\t<odp>${odp}</odp>
+\t\t<ddp>${ddp}</ddp>
+\t</typDP>
+\t<zdanovacieObdobie>
+\t\t<rok>2025</rok>
+\t\t<datumDDP></datumDDP>
+\t</zdanovacieObdobie>
+\t<skNace>
+\t\t<k1>${esc(naceK1)}</k1>
+\t\t<k2>${esc(naceK2)}</k2>
+\t\t<k3>${esc(naceK3)}</k3>
+\t\t<cinnost></cinnost>
+\t</skNace>
+\t<priezvisko>${esc(priezv)}</priezvisko>
+\t<meno>${esc(meno)}</meno>
+\t<titul>${esc(titul)}</titul>
+\t<titulZa>${esc(titulZ)}</titulZa>
+\t<adresaTrvPobytu>
+\t\t<ulica>${esc(ulica)}</ulica>
+\t\t<cislo>${esc(cislo)}</cislo>
+\t\t<psc>${esc(psc)}</psc>
+\t\t<obec>${esc(obec)}</obec>
+\t\t<stat>Slovensko</stat>
+\t</adresaTrvPobytu>
+\t<nerezident>
+\t\t<nerezident>0</nerezident>
+\t\t<datumOd></datumOd>
+\t\t<datumDo></datumDo>
+\t\t<TIN></TIN>
+\t</nerezident>
+\t<prepojeniePar2>0</prepojeniePar2>
+\t<adresaObvPobytu>
+\t\t<ulica></ulica>
+\t\t<cislo></cislo>
+\t\t<psc></psc>
+\t\t<obec></obec>
+\t</adresaObvPobytu>
+\t<zastupca>
+\t<priezvisko></priezvisko>
+\t<meno></meno>
+\t<titul></titul>
+\t<titulZa></titulZa>
+\t<rodneCislo></rodneCislo>
+\t<ulica></ulica>
+\t<cislo></cislo>
+\t<psc></psc>
+\t<obec></obec>
+\t<stat></stat>
+\t<tel>${esc(tel)}</tel>
+\t<email>${esc(email)}</email>
+\t</zastupca>
+</hlavicka>
+<telo>
+\t<r29>0</r29>
+\t<r30></r30>
+\t<r31>
+\t<priezviskoMeno></priezviskoMeno>
+\t<rodneCislo></rodneCislo>
+\t</r31>
+\t<r32>
+\t<uplatnujemNCZDNaManzela>${C.nczd_manzel > 0 ? 1 : 0}</uplatnujemNCZDNaManzela>
+\t<vlastnePrijmy></vlastnePrijmy>
+\t<pocetMesiacov></pocetMesiacov>
+\t</r32>
+\t<r33>
+\t\t<dieta>
+\t\t\t<priezviskoMeno></priezviskoMeno>
+\t\t\t<rodneCislo></rodneCislo>
+\t\t\t<m00>0</m00>
+\t\t\t<m01>0</m01><m02>0</m02><m03>0</m03><m04>0</m04><m05>0</m05>
+\t\t\t<m06>0</m06><m07>0</m07><m08>0</m08><m09>0</m09><m10>0</m10>
+\t\t\t<m11>0</m11><m12>0</m12>
+\t\t</dieta>
+\t</r33>
+\t<r33a>0</r33a>
+\t<uplatnujemPar33Ods8>0</uplatnujemPar33Ods8>
+\t<r34>
+\t\t<priezviskoMeno></priezviskoMeno>
+\t\t<rodneCislo></rodneCislo>
+\t\t<m00>0</m00><m01>0</m01><m02>0</m02><m03>0</m03><m04>0</m04>
+\t\t<m05>0</m05><m06>0</m06><m07>0</m07><m08>0</m08><m09>0</m09>
+\t\t<m10>0</m10><m11>0</m11><m12>0</m12>
+\t\t<druhaOsobaPodalaDPvSR>0</druhaOsobaPodalaDPvSR>
+\t\t<dokladRocZuct>0</dokladRocZuct>
+\t\t<dokladVyskaDane>0</dokladVyskaDane>
+\t</r34>
+\t<r34a></r34a>
+\t<r35>
+\t<uplatDanBonusZaplatUroky>0</uplatDanBonusZaplatUroky>
+\t<zaplateneUroky></zaplateneUroky>
+\t<pocetMesiacov></pocetMesiacov>
+\t<datumZacatiaUroceniaUveru></datumZacatiaUroceniaUveru>
+\t<datumUzavretiaZmluvyOUvere></datumUzavretiaZmluvyOUvere>
+\t</r35>
+\t<r36>${r36}</r36>
+\t<r36a>${r36a}</r36a>
+\t<r37>${r37}</r37>
+\t<r38>${r38}</r38>
+\t<tabulka1>
+\t\t<t1r1><s1></s1><s2></s2></t1r1>
+\t\t<t1r2>
+\t\t\t<s1>${C.p_zivnost > 0 ? n2(C.p_zivnost) : ''}</s1>
+\t\t\t<s2></s2>
+\t\t</t1r2>
+\t\t<t1r3>
+\t\t\t<s1>${C.p_ina > 0 ? n2(C.p_ina) : ''}</s1>
+\t\t\t<s2></s2>
+\t\t</t1r3>
+\t\t<t1r4><s1></s1><s2></s2></t1r4>
+\t\t<t1r5><s1></s1><s2></s2></t1r5>
+\t\t<t1r6><s1></s1><s2></s2></t1r6>
+\t\t<t1r7><s1></s1><s2></s2></t1r7>
+\t\t<t1r8><s1></s1><s2></s2></t1r8>
+\t\t<t1r9><s1></s1><s2></s2></t1r9>
+\t\t<t1r10>
+\t\t\t<s1>${n2(C.celk_prijmy_6)}</s1>
+\t\t\t<s2>${pausalne ? n2(C.celk_vydavky_6) : ''}</s2>
+\t\t</t1r10>
+\t\t<t1r11><s1></s1><s2></s2></t1r11>
+\t\t<t1r12><s1></s1><s2></s2></t1r12>
+\t\t<t1r13><s1></s1><s2></s2></t1r13>
+\t</tabulka1>
+\t<mikrodanovnikPar2w>0</mikrodanovnikPar2w>
+\t<vydavkyPar6ods11_ods1a2>0</vydavkyPar6ods11_ods1a2>
+\t<vydavkyPar6ods11_ods3>0</vydavkyPar6ods11_ods3>
+\t<vydavkyPar6ods11_ods4>0</vydavkyPar6ods11_ods4>
+\t<vydavkyPar6ods10_ods1a2>${pausalne}</vydavkyPar6ods10_ods1a2>
+\t<vydavkyPar6ods10_ods4>0</vydavkyPar6ods10_ods4>
+\t<vydavkyPoistPar6ods11_ods1a2>${n2z(C.celkove_odvody)}</vydavkyPoistPar6ods11_ods1a2>
+\t<uplatnujemPar17ods17_ods1a2>0</uplatnujemPar17ods17_ods1a2>
+\t<uplatnujemPar17ods17_ods3a4>0</uplatnujemPar17ods17_ods3a4>
+\t<ukoncujemUplatnovaniePar17ods17_ods1a2>0</ukoncujemUplatnovaniePar17ods17_ods1a2>
+\t<ukoncujemUplatnovaniePar17ods17_ods3a4>0</ukoncujemUplatnovaniePar17ods17_ods3a4>
+\t<tabulka1a>
+\t\t<t1r1><s1></s1><s2></s2></t1r1>
+\t\t<t1r2><s1></s1><s2></s2></t1r2>
+\t\t<t1r3><s1></s1><s2></s2></t1r3>
+\t\t<t1r4><s1></s1><s2></s2></t1r4>
+\t\t<t1r5><s1></s1><s2></s2></t1r5>
+\t\t<t1r6><s1></s1><s2></s2></t1r6>
+\t</tabulka1a>
+\t<tabulka1b>
+\t\t<t1r1><s1></s1><s2></s2></t1r1>
+\t\t<t1r2><s1></s1><s2></s2></t1r2>
+\t</tabulka1b>
+\t<r39>${n2(C.celk_prijmy_6)}</r39>
+\t<r40>${n2(C.celk_vydavky_6)}</r40>
+\t<r41>${n2(C.czd_6)}</r41>
+\t<r42></r42>
+\t<r43></r43>
+\t<r44></r44>
+\t<r45>${n2(C.czd_6)}</r45>
+\t<r46></r46>
+\t<r47><rok>2020</rok><udaje><r02></r02><r03></r03><r04></r04></udaje></r47>
+\t<r48><rok>2021</rok><udaje><r02></r02><r03></r03><r04></r04></udaje></r48>
+\t<r49><rok>2022</rok><udaje><r02></r02><r03></r03><r04></r04></udaje></r49>
+\t<r50><rok>2023</rok><udaje><r02></r02><r03></r03><r04></r04></udaje></r50>
+\t<r50a><rok>2024</rok><udaje><r02></r02><r04></r04></udaje></r50a>
+\t<r51></r51><r52></r52><r53></r53><r54></r54><r54a></r54a>
+\t<r55>${n2(C.czd_6)}</r55>
+\t<r56></r56>
+\t<r57>${n2(C.czd_6)}</r57>
+\t<r58></r58><r59></r59><r60></r60>
+\t<r61></r61><r62></r62><r63></r63><r64></r64><r65></r65>
+\t<tabulka2>
+\t\t<t2r1><s1></s1><s2></s2></t2r1><t2r2><s1></s1><s2></s2></t2r2>
+\t\t<t2r3><s1></s1><s2></s2></t2r3><t2r4><s1></s1><s2></s2></t2r4>
+\t\t<t2r5><s1></s1><s2></s2></t2r5><t2r6><s1></s1><s2></s2></t2r6>
+\t\t<t2r7><s1></s1><s2></s2></t2r7><t2r8><s1></s1><s2></s2></t2r8>
+\t\t<t2r9><s1></s1><s2></s2></t2r9><t2r10><s1></s1><s2></s2></t2r10>
+\t\t<t2r11><s1></s1><s2></s2></t2r11><t2r12><s1></s1></t2r12>
+\t</tabulka2>
+\t<r66></r66><r67></r67><r68></r68>
+\t<tabulka3>
+\t\t<t3r1><s1></s1><s2></s2></t3r1><t3r2><s1></s1><s2></s2></t3r2>
+\t\t<t3r3><s1></s1><s2></s2></t3r3><t3r4><s1></s1><s2></s2></t3r4>
+\t\t<t3r5><s1></s1><s2></s2></t3r5><t3r6><s1></s1><s2></s2></t3r6>
+\t\t<t3r7><s1></s1><s2></s2></t3r7><t3r8><s1></s1><s2></s2></t3r8>
+\t\t<t3r9><s1></s1><s2></s2></t3r9><t3r10><s1></s1><s2></s2></t3r10>
+\t\t<t3r11><s1></s1><s2></s2></t3r11><t3r12><s1></s1><s2></s2></t3r12>
+\t\t<t3r13><s1></s1><s2></s2></t3r13><t3r14><s1></s1><s2></s2></t3r14>
+\t\t<t3r15><s1></s1><s2></s2></t3r15><t3r16><s1></s1><s2></s2></t3r16>
+\t\t<t3r17><s1></s1><s2></s2></t3r17><t3r18><s1></s1></t3r18>
+\t\t<t3r19><s1></s1><s2></s2></t3r19>
+\t</tabulka3>
+\t<r69></r69><r70></r70><r71></r71>
+\t<r72>${n2(C.uhrnZD_aktivny)}</r72>
+\t<r73>${n2(C.nczd_dankovnik_suma)}</r73>
+\t<r74>${C.nczd_manzel > 0 ? n2(C.nczd_manzel) : ''}</r74>
+\t<r75>${C.iii > 0 ? n2(C.iii) : ''}</r75>
+\t<r77>${n2(C.celk_nczd)}</r77>
+\t<r78>${C.czd_5 > 0 ? n2(C.zd_a) : ''}</r78>
+\t<r79></r79>
+\t<r80>${C.czd_5 > 0 ? n2(C.zd_a) : ''}</r80>
+\t<r81>${C.czd_5 > 0 ? n2(C.dan_a) : ''}</r81>
+\t<r82></r82><r83></r83><r84></r84><r85></r85><r86></r86>
+\t<r87></r87><r88></r88><r89></r89>
+\t<r90></r90>
+\t<r91>${n2(C.celk_nczd - Math.min(C.celk_nczd, C.czd_5))}</r91>
+\t<r92>${n2(C.zd_b)}</r92>
+\t<r93></r93>
+\t<r94>${n2(C.zd_b)}</r94>
+\t<r95>${n2(C.celk_prijmy_6)}</r95>
+\t<r96>${n2(C.dan_b)}</r96>
+\t<r97></r97><r98></r98><r99></r99>
+\t<r100></r100><r101></r101><r102></r102><r103></r103><r104></r104>
+\t<r105>${(C.dan_a > 0 || C.dan_b > 0) ? n2((C.dan_a||0) + (C.dan_b||0)) : ""}</r105>
+\t<r106></r106>
+\t<r107>${C.bonus > 0 ? n2(C.bonus) : ''}</r107>
+\t<r108></r108><r109></r109><r110></r110><r111></r111>
+\t<r112></r112><r113></r113><r114></r114><r115></r115>
+\t<r116>${n2(C.dan)}</r116>
+\t<r116a></r116a>
+\t<r117>${C.bonus > 0 ? n2(C.bonus) : ''}</r117>
+\t<r118>${n2(C.dan_po_bonuse)}</r118>
+\t<r119></r119><r120></r120>
+\t<r121>${C.bonus > C.dan ? n2(C.bonus - C.dan) : ''}</r121>
+\t<r122></r122><r123></r123>
+\t<r124>${n2(C.dan_po_bonuse)}</r124>
+\t<r125></r125><r126></r126><r127></r127><r128></r128>
+\t<r129></r129><r130></r130>
+\t<r131>${C.celk_pred5 > 0 ? n2(C.celk_pred5) : ''}</r131>
+\t<r132></r132><r133></r133><r134></r134>
+\t<r135>${C.dan_na_uhradu > 0 ? n2(C.dan_na_uhradu) : ''}</r135>
+\t<r136>${C.preplatok > 0 ? n2(C.preplatok) : ''}</r136>
+\t<r137></r137><r138></r138><r139></r139><r140></r140>
+\t<r141></r141><r142></r142><r143></r143><r144></r144>
+\t<r145></r145><r146></r146><r146a></r146a>
+\t<r147></r147><r148></r148>
+\t<r149>0</r149><r150></r150>
+\t<r151>
+\t\t<ico>${esc(asigIco)}</ico>
+\t\t<splnam3per>${splnam3}</splnam3per>
+\t\t<neuplatnujemPar50>${neuplatnujem}</neuplatnujemPar50>
+\t\t<obchodneMeno><riadok><![CDATA[${asigNazov}]]></riadok></obchodneMeno>
+\t\t<suhlasSoZaslanim>${asigPerc > 0 ? asigSuhlas : 0}</suhlasSoZaslanim>
+\t</r151>
+\t<r152>${asigSuma}</r152>
+\t<r153>
+\t\t<neuplatnujemPar50aa>1</neuplatnujemPar50aa>
+\t\t<rodicA><rodneCislo></rodneCislo><priezvisko></priezvisko><meno></meno></rodicA>
+\t\t<rodicB><rodneCislo></rodneCislo><priezvisko></priezvisko><meno></meno></rodicB>
+\t\t<bolZverenyDoStarostlivosti>0</bolZverenyDoStarostlivosti>
+\t</r153>
+\t<osobitneZaznamy>
+\t\t<uvadza>0</uvadza>
+\t\t<udajeOprijmoch>
+\t\t\t<kodStatu></kodStatu><druhPrimuPar></druhPrimuPar>
+\t\t\t<druhPrimuOds></druhPrimuOds><druhPrimuPis></druhPrimuPis>
+\t\t\t<prijmy></prijmy><vydavky></vydavky><zTohoVydavky></zTohoVydavky>
+\t\t</udajeOprijmoch>
+\t\t<rekreaciaPar19ods2>0</rekreaciaPar19ods2>
+\t\t<rekreaciaSuma></rekreaciaSuma>
+\t\t<zaznamy><![CDATA[]]></zaznamy>
+\t</osobitneZaznamy>
+\t<r154>${r154}</r154>
+\t<datumVyhlasenia>${datumVyhl}</datumVyhlasenia>
+\t<danovyPreplatokBonus>
+\t\t<vyplatitDanovyBonus>0</vyplatitDanovyBonus>
+\t\t<vyplatitDanovyBonusUroky>0</vyplatitDanovyBonusUroky>
+\t\t<vratitDanPreplatok>0</vratitDanPreplatok>
+\t\t<sposobPlatby><poukazka>0</poukazka><ucet>0</ucet><ucetZahranicie>0</ucetZahranicie></sposobPlatby>
+\t\t<bankovyUcet><IBAN></IBAN></bankovyUcet>
+\t\t<datum></datum>
+\t</danovyPreplatokBonus>
+\t<pril2PodielyNaZisku>
+\t\t<pr1></pr1><pr2></pr2><pr3></pr3>
+\t\t<pr4><s1></s1><s2></s2></pr4>
+\t\t<pr5><s1></s1><s2></s2></pr5>
+\t\t<pr6><s1></s1><s2></s2></pr6>
+\t\t<pr7></pr7><pr8></pr8><pr9></pr9><pr10></pr10>
+\t\t<pr11></pr11><pr12></pr12><pr13></pr13><pr14></pr14>
+\t\t<pr15></pr15><pr16></pr16><pr17></pr17><pr18></pr18>
+\t\t<pr19></pr19><pr20></pr20><pr21></pr21>
+\t\t<pr22><s1></s1><s2></s2></pr22>
+\t\t<pr23><s1></s1><s2></s2></pr23>
+\t\t<pr24><s1></s1><s2></s2></pr24>
+\t\t<pr25></pr25><pr26>35</pr26><pr27></pr27><pr28></pr28>
+\t</pril2PodielyNaZisku>
+\t<pril3VynosyZDlhopisov>
+\t\t<pr1></pr1>
+\t\t<pr2></pr2>
+\t\t<pr3></pr3>
+\t\t<pr4>16</pr4>
+\t\t<pr5></pr5>
+\t\t<pr6></pr6><pr7></pr7><pr8></pr8><pr9></pr9>
+\t\t<pr10></pr10><pr11></pr11><pr12></pr12><pr13></pr13><pr14></pr14>
+\t</pril3VynosyZDlhopisov>
+\t<socZdravPoistenie>
+\t\t<pr1><s1></s1><s2></s2></pr1>
+\t\t<pr2></pr2><pr3></pr3><pr4></pr4><pr5></pr5><pr6></pr6>
+\t\t<pr7></pr7><pr8>${(C.celk_poi5||0) > 0 ? n2(C.celk_poi5) : ''}</pr8><pr9>${(C.celk_sp5||0) > 0 ? n2(C.celk_sp5) : ''}</pr9><pr10>${(C.celk_zp5||0) > 0 ? n2(C.celk_zp5) : ''}</pr10>
+\t\t<pr11>${C.socialne > 0 ? n2(C.socialne) : ''}</pr11>
+\t\t<pr12></pr12>
+\t\t<pr13>${C.zdravotne > 0 ? n2(C.zdravotne) : ''}</pr13>
+		<pr14>${C.zdravotne_pred > 0 ? n2(C.zdravotne_pred) : (C.zdravotne > 0 ? n2(C.zdravotne) : '')}</pr14>
+\t\t<pr15></pr15>
+\t\t<priPrimoch6ods1a2VediemPU>0</priPrimoch6ods1a2VediemPU>
+\t\t<datum>${datumVyhl}</datum>
+\t</socZdravPoistenie>
+</telo>
+</dokument>`;
+}
+
+function generateXML() {
+  try {
+    calc5(); calc();
+    const xml = buildXML();
+    const filename = `DPFOBv25_${document.getElementById('priezvisko').value||'dankovnik'}_2025.xml`;
+    // Metóda 1: Blob + objektURL
+    try {
+      const blob = new Blob(['\uFEFF' + xml], {type: 'application/xml;charset=utf-8'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 2000);
+    } catch(e1) {
+      // Metóda 2: data URI fallback
+      const uri = 'data:application/xml;charset=utf-8,' + encodeURIComponent(xml);
+      window.open(uri, '_blank');
+    }
+    generateXMLPreview();
+  } catch(e) {
+    alert('Chyba pri generovaní XML:\n' + e.message + '\n\nSkontrolujte konzolu (F12).');
+    console.error(e);
+  }
+}
+
+// ——— PDF ———
+async function generatePDF() {
+  const meno = document.getElementById('meno').value;
+  const priezvisko = document.getElementById('priezvisko').value;
+  const dic = document.getElementById('dic').value;
+  const now = new Date().toLocaleDateString('sk-SK');
+  const asigPerc2 = parseFloat(document.getElementById('asig_percento').value) || 0;
+  const asigSuma2 = asigPerc2 > 0 ? Math.max(3, Math.round((C.dan_po_bonuse||0) * asigPerc2) / 100).toFixed(2) : '';
+
+  const rows = [
+    ['PRÍJMY ZO ZÁVISLEJ ČINNOSTI §5','',true],
+    ['Príjmy §5 brutto (r.36)',fmt(C.celk_p5),false],
+    ['Povinné poistné ZC (r.37)',fmt(C.celk_poi5),false],
+    ['ČZD §5 (r.38)',fmt(C.czd_5),true],
+    ['Zrazené preddavky na daň (r.39)',fmt(C.celk_pred5),false],
+    ['PRÍJMY Z PODNIKANIA §6','',true],
+    ['Príjmy zo živnosti §6 ods.1 (r.02)',fmt(C.p_zivnost),false],
+    ['Príjmy iná SZČO §6 ods.2 (r.03)',fmt(C.p_ina),false],
+    ['Výdavky §6 (paušál + odvody)',fmt(C.celk_vydavky_6),false],
+    ['ČZD §6 (r.55)',fmt(C.czd_6),true],
+    ['NEZDANITEĽNÉ ČASTI (§11)','',true],
+    ['NČZD na daňovníka (r.73)',fmt(C.nczd_dankovnik_suma),false],
+    ['NČZD na manžela/ku (r.74)',fmt(C.nczd_manzel),false],
+    ['III. pilier – max 180 € (r.75)',fmt(C.iii),false],
+    ['VÝPOČET DANE','',true],
+    ['ZD §4a – §5 po NČZD (r.78)',fmt(C.zd_a),false],
+    ['Daň §4a – 19%/25% (r.81)',fmt(C.dan_a),false],
+    ['ZD §4b – §6 ods.1+2 po NČZD (r.92)',fmt(C.zd_b),false],
+    [`Daň §4b – ${C.sadzba_b} (r.96)`,fmt(C.dan_b),false],
+    ['Daň spolu (r.105)',fmt(C.dan),true],
+    ['Daňový bonus na deti (r.117)','−'+fmt(C.bonus),false],
+    ['Zrazené preddavky §5 (r.131)','−'+fmt(C.celk_pred5),false],
+    [C.dan_na_uhradu>0?'DAŇ NA ÚHRADU (r.135)':'DAŇOVÝ PREPLATOK (r.136)',
+     C.dan_na_uhradu>0?fmt(C.dan_na_uhradu):fmt(C.preplatok),true],
+    ...(asigPerc2 > 0 ? [['Asignácia '+asigPerc2+'% §50 (r.152)', asigSuma2+' €', false]] : []),
+  ];
+
+  // Burden calc for PDF
+  const prijmyPDF  = (C.celk_p5||0) + (C.celk_prijmy_6||0);
+  const zdravotnePDF = parseFloat(document.getElementById('zdravotne')?.value) || 0;
+  const socialePDF   = parseFloat(document.getElementById('socialne')?.value)  || 0;
+  const statPDF    = (C.dan_po_bonuse||0) + zdravotnePDF + socialePDF + (C.celk_poi5||0);
+  const cistePDF   = Math.max(0, prijmyPDF - statPDF);
+  const pctPDF     = prijmyPDF > 0 ? (statPDF/prijmyPDF*100).toFixed(1) : '—';
+  const fmt2 = v => v.toLocaleString('sk-SK',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+  const burdenRows = [
+    {label:'Daň z príjmu', val: C.dan_po_bonuse||0, color:'#321941'},
+    {label:'Zdravotné poistenie', val: zdravotnePDF, color:'#6b3d8a'},
+    {label:'Sociálne poistenie', val: socialePDF, color:'#9b5cc4'},
+    {label:'Odvody §5 (zamestnanec)', val: C.celk_poi5||0, color:'#c49de0'},
+    {label:'Čistý príjem', val: cistePDF, color:'#AFFA96'},
+  ].filter(r => r.val > 0);
+
+  // Vybuduj HTML pre rendering
+  const rowsHTML = rows.map(([lbl,val,bold]) => {
+    if(bold && val==='') return `
+      <tr style="background:#e6eaff;">
+        <td colspan="2" style="padding:6px 10px;font-weight:700;font-size:11px;color:#3246a0;letter-spacing:.05em;text-transform:uppercase;">${lbl}</td>
+      </tr>`;
+    return `
+      <tr style="border-bottom:1px solid #dde0eb;">
+        <td style="padding:5px 10px;font-size:12px;color:${bold?'#141e50':'#323246'};font-weight:${bold?'700':'400'};">${lbl}</td>
+        <td style="padding:5px 10px;text-align:right;font-family:monospace;font-size:12px;color:${bold?'#141e50':'#323246'};font-weight:${bold?'700':'400'};">${val}</td>
+      </tr>`;
+  }).join('');
+
+  const html = `
+    <div style="width:794px;padding:40px 50px;font-family:Arial,Helvetica,sans-serif;background:#fff;color:#222;">
+      <div style="border-bottom:2px solid #3246a0;padding-bottom:14px;margin-bottom:20px;">
+        <div style="font-size:20px;font-weight:700;color:#141e50;">DPFO – Typ B / Zdaňovacie obdobie 2025</div>
+        <div style="font-size:11px;color:#666;margin-top:4px;">Daňovník: <strong>${priezvisko} ${meno}</strong> &nbsp;|&nbsp; DIČ: <strong>${dic}</strong> &nbsp;|&nbsp; Vygenerované: ${now}</div>
+        <div style="font-size:10px;color:#999;margin-top:2px;">Tlačivo DPFOBv25 (MF/012186/2025-721) | Helwitax s.r.o. | helwitax.sk</div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;">
+        ${rowsHTML}
+      </table>
+      <div style="margin-top:20px;padding:16px;background:#f7f4fc;border-radius:8px;border:1.5px solid #e4dff0;">
+        <div style="font-size:12px;font-weight:700;color:#321941;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;">Celkové daňové a odvodové zaťaženie</div>
+        <div style="display:flex;align-items:flex-start;gap:20px;">
+          <div style="text-align:center;min-width:80px">
+            <div style="font-size:28px;font-weight:800;color:#321941;">${pctPDF}%</div>
+            <div style="font-size:9px;color:#7a6b90;text-transform:uppercase;letter-spacing:.05em;font-weight:700">z príjmu<br>do štátu</div>
+          </div>
+          <div style="flex:1">
+            ${burdenRows.map(r=>`
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
+                <div style="width:8px;height:8px;border-radius:2px;background:${r.color};flex-shrink:0;border:${r.color==='#AFFA96'?'1px solid #ccc':'none'}"></div>
+                <div style="flex:1;font-size:11px;color:#321941;">${r.label}</div>
+                <div style="font-size:11px;font-weight:700;color:#321941;font-family:monospace;">${fmt2(r.val)}</div>
+                <div style="font-size:10px;color:#7a6b90;width:36px;text-align:right;">${prijmyPDF>0?(r.val/prijmyPDF*100).toFixed(1)+'%':''}</div>
+              </div>`).join('')}
+            <div style="border-top:1px solid #c8bfe0;margin-top:6px;padding-top:6px;display:flex;justify-content:space-between;">
+              <span style="font-size:11px;font-weight:700;color:#321941;">Príjem spolu:</span>
+              <span style="font-size:11px;font-weight:700;color:#321941;font-family:monospace;">${fmt2(prijmyPDF)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:16px;font-size:9px;color:#aaa;border-top:1px solid #eee;padding-top:10px;">
+        * Informatívny súhrn. Pre podanie použite XML export na Portáli finančnej správy.<br>
+        Vygenerované: Helwitax DPFO-B aplikácia | helwitax.sk
+      </div>
+    </div>`;
+
+  // Vyrenderuj do skrytého elementu
+  const container = document.createElement('div');
+  container.style.cssText = 'position:fixed;left:-9999px;top:0;';
+  container.innerHTML = html;
+  document.body.appendChild(container);
+
+  try {
+    const canvas = await html2canvas(container.firstElementChild, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff'
+    });
+    const imgData = canvas.toDataURL('image/png');
+    const {jsPDF} = window.jspdf;
+    const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+    const pxToMm = 210 / canvas.width;
+    const imgH = canvas.height * pxToMm;
+    // Ak obsah presahuje 1 stranu, rozdeliť
+    const pageH = 297;
+    let y = 0;
+    while(y < imgH) {
+      if(y > 0) doc.addPage();
+      doc.addImage(imgData, 'PNG', 0, -y, 210, imgH);
+      y += pageH;
+    }
+    doc.save(`DPFOBv25_suhrn_${priezvisko}_2025.pdf`);
+  } finally {
+    document.body.removeChild(container);
+  }
+}
+
+// ══════════════════════════════════════════════
+// SUPABASE INTEGRATION
+// ══════════════════════════════════════════════
+const SUPA_URL = 'https://xkpjnbzryrqxnjkvlezr.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhrcGpuYnpyeXJxeG5qa3ZsZXpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3OTQ1OTcsImV4cCI6MjA4ODM3MDU5N30.HV5EIWd4DMgEVKyYoOYeiBtegTYJX4DZF3xmhPBKBSs';
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+let currentUser = null;
+let currentClientId = null;
+let allClients = [];
+
+// ── AUTH ──
+async function initAuth() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    currentUser = session.user;
+    onLoggedIn();
+  } else {
+    document.getElementById('loginOverlay').classList.remove('hidden');
+  }
+  sb.auth.onAuthStateChange((_e, sess) => {
+    if (sess) { currentUser = sess.user; onLoggedIn(); }
+    else { currentUser = null; onLoggedOut(); }
+  });
+}
+
+function onLoggedIn() {
+  document.getElementById('loginOverlay').classList.add('hidden');
+  const badge = document.getElementById('headerUserBadge');
+  badge.style.display = 'flex';
+  document.getElementById('headerUserEmail').textContent = currentUser.email;
+  loadClients();
+  // Open client manager automatically on first load
+  openCM();
+}
+
+function onLoggedOut() {
+  document.getElementById('loginOverlay').classList.remove('hidden');
+  document.getElementById('headerUserBadge').style.display = 'none';
+  document.getElementById('cmOverlay').classList.add('hidden');
+}
+
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPass').value;
+  const err   = document.getElementById('loginErr');
+  const btn   = document.getElementById('loginBtn');
+  err.classList.remove('show');
+  btn.textContent = 'Prihlasovanie…';
+  btn.disabled = true;
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  btn.textContent = 'Prihlásiť sa';
+  btn.disabled = false;
+  if (error) {
+    err.textContent = error.message === 'Invalid login credentials'
+      ? 'Nesprávny e-mail alebo heslo.' : error.message;
+    err.classList.add('show');
+  }
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+}
+
+async function showReset() {
+  const email = document.getElementById('loginEmail').value.trim()
+    || prompt('Zadajte váš e-mail pre reset hesla:');
+  if (!email) return;
+  const { error } = await sb.auth.resetPasswordForEmail(email);
+  alert(error ? 'Chyba: ' + error.message : 'E-mail na reset hesla bol odoslaný.');
+}
+
+// ── CLIENT MANAGER ──
+function openCM() {
+  document.getElementById('cmOverlay').classList.remove('hidden');
+  filterClients();
+}
+
+function closeCM() {
+  document.getElementById('cmOverlay').classList.add('hidden');
+}
+
+function toggleAddPanel() {
+  const p = document.getElementById('cmAddPanel');
+  p.classList.toggle('open');
+  if (p.classList.contains('open')) {
+    ['cm_priezvisko','cm_meno','cm_dic','cm_rc','cm_email_k','cm_telefon_k','cm_ulica','cm_cislo','cm_psc','cm_obec','cm_nace']
+      .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  }
+}
+
+async function loadClients() {
+  const { data, error } = await sb
+    .from('klienti')
+    .select('*')
+    .order('priezvisko', { ascending: true });
+  if (!error) {
+    allClients = data || [];
+    renderClients(allClients);
+  } else {
+    // Table might not exist yet
+    renderClients([]);
+  }
+}
+
+function filterClients() {
+  const q = (document.getElementById('cmSearch')?.value || '').toLowerCase();
+  const filtered = allClients.filter(c =>
+    (c.priezvisko + ' ' + c.meno + ' ' + (c.dic||'')).toLowerCase().includes(q)
+  );
+  renderClients(filtered);
+}
+
+function renderClients(list) {
+  const el = document.getElementById('cmList');
+  if (!list.length) {
+    el.innerHTML = '<div class="cm-empty">Žiadni klienti. Pridajte prvého klienta pomocou tlačidla vyššie.</div>';
+    return;
+  }
+  el.innerHTML = list.map(c => `
+    <div class="cm-item" onclick="selectClient('${c.id}')">
+      <div class="cm-item-info">
+        <div class="cm-item-name">${c.priezvisko} ${c.meno}</div>
+        <div class="cm-item-meta">${c.dic ? 'DIČ: ' + c.dic : ''}${c.rc ? '  ·  RČ: ' + c.rc : ''}${c.obec ? '  ·  ' + c.obec : ''}</div>
+      </div>
+      <div class="cm-item-actions">
+        <button class="cm-btn-select" onclick="event.stopPropagation();selectClient('${c.id}')">Vybrať →</button>
+        <button class="cm-btn-edit" onclick="event.stopPropagation();openEditPanel('${c.id}')">Upraviť</button>
+        <button class="cm-btn-del" onclick="event.stopPropagation();deleteClient('${c.id}')">Odstrániť</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function saveNewClient() {
+  const priezvisko = document.getElementById('cm_priezvisko').value.trim();
+  const meno = document.getElementById('cm_meno').value.trim();
+  if (!priezvisko || !meno) { alert('Meno a priezvisko sú povinné.'); return; }
+  const obj = {
+    priezvisko, meno,
+    dic:     document.getElementById('cm_dic').value.trim()     || null,
+    rc:      document.getElementById('cm_rc').value.trim()      || null,
+    email:   document.getElementById('cm_email_k').value.trim() || null,
+    telefon: document.getElementById('cm_telefon_k').value.trim()|| null,
+    ulica:   document.getElementById('cm_ulica').value.trim()   || null,
+    cislo:   document.getElementById('cm_cislo').value.trim()   || null,
+    psc:     document.getElementById('cm_psc').value.trim()     || null,
+    obec:    document.getElementById('cm_obec').value.trim()    || null,
+    nace:    document.getElementById('cm_nace').value.trim()    || null,
+    user_id: currentUser.id
+  };
+  const { data, error } = await sb.from('klienti').insert(obj).select().single();
+  if (error) { alert('Chyba pri ukladaní: ' + error.message); return; }
+  allClients.push(data);
+  allClients.sort((a,b) => a.priezvisko.localeCompare(b.priezvisko));
+  toggleAddPanel();
+  filterClients();
+  showSaved('✓ Klient uložený');
+}
+
+async function deleteClient(id) {
+  if (!confirm('Naozaj odstrániť klienta? Táto akcia je nevratná.')) return;
+  const { error } = await sb.from('klienti').delete().eq('id', id);
+  if (error) { alert('Chyba: ' + error.message); return; }
+  allClients = allClients.filter(c => c.id !== id);
+  filterClients();
+  showSaved('✓ Klient odstránený');
+}
+
+function openEditPanel(id) {
+  const c = allClients.find(x => x.id === id);
+  if (!c) return;
+  const s = (elId, val) => { const el = document.getElementById(elId); if(el) el.value = val || ''; };
+  s('cm_edit_id',        c.id);
+  s('cm_edit_priezvisko',c.priezvisko);
+  s('cm_edit_meno',      c.meno);
+  s('cm_edit_dic',       c.dic);
+  s('cm_edit_rc',        c.rc);
+  s('cm_edit_email_k',   c.email);
+  s('cm_edit_telefon_k', c.telefon);
+  s('cm_edit_ulica',     c.ulica);
+  s('cm_edit_cislo',     c.cislo);
+  s('cm_edit_psc',       c.psc);
+  s('cm_edit_obec',      c.obec);
+  s('cm_edit_nace',      c.nace);
+  // Close add panel if open
+  document.getElementById('cmAddPanel').classList.remove('open');
+  document.getElementById('cmEditPanel').classList.add('open');
+  document.getElementById('cmEditPanel').scrollIntoView({behavior:'smooth'});
+}
+
+function closeEditPanel() {
+  document.getElementById('cmEditPanel').classList.remove('open');
+}
+
+async function updateClient() {
+  const id = document.getElementById('cm_edit_id').value;
+  const priezvisko = document.getElementById('cm_edit_priezvisko').value.trim();
+  const meno = document.getElementById('cm_edit_meno').value.trim();
+  if (!priezvisko || !meno) { alert('Meno a priezvisko sú povinné.'); return; }
+  const obj = {
+    priezvisko, meno,
+    dic:     document.getElementById('cm_edit_dic').value.trim()      || null,
+    rc:      document.getElementById('cm_edit_rc').value.trim()       || null,
+    email:   document.getElementById('cm_edit_email_k').value.trim()  || null,
+    telefon: document.getElementById('cm_edit_telefon_k').value.trim()|| null,
+    ulica:   document.getElementById('cm_edit_ulica').value.trim()    || null,
+    cislo:   document.getElementById('cm_edit_cislo').value.trim()    || null,
+    psc:     document.getElementById('cm_edit_psc').value.trim()      || null,
+    obec:    document.getElementById('cm_edit_obec').value.trim()     || null,
+    nace:    document.getElementById('cm_edit_nace').value.trim()     || null,
+  };
+  const { data, error } = await sb.from('klienti').update(obj).eq('id', id).select().single();
+  if (error) { alert('Chyba pri ukladaní: ' + error.message); return; }
+  const idx = allClients.findIndex(c => c.id === id);
+  if (idx >= 0) allClients[idx] = data;
+  allClients.sort((a,b) => a.priezvisko.localeCompare(b.priezvisko));
+  closeEditPanel();
+  filterClients();
+  // Ak je editovaný klient aktuálne vybraný, aktualizuj formulár
+  if (currentClientId === id) {
+    const set = (elId, val) => { const el = document.getElementById(elId); if(el && val != null && val !== '') el.value = val; };
+    set('priezvisko', data.priezvisko);
+    set('meno',       data.meno);
+    set('dic',        data.dic);
+    set('rc',         data.rc);
+    set('email',      data.email);
+    set('telefon',    data.telefon);
+    set('ulica',      data.ulica);
+    set('cislo',      data.cislo);
+    set('psc',        data.psc);
+    set('obec',       data.obec);
+    set('nace',       data.nace);
+    const sub = document.querySelector('.subtitle');
+    if (sub) sub.textContent = `Zdaňovacie obdobie 2025 · ${data.priezvisko} ${data.meno}`;
+  }
+  showSaved('✓ Klient aktualizovaný');
+}
+
+function selectClient(id) {
+  const c = allClients.find(x => x.id === id);
+  if (!c) return;
+  currentClientId = id;
+
+  // Pre-fill form fields
+  const set = (elId, val) => { const el = document.getElementById(elId); if(el && val != null && val !== '') el.value = val; };
+  set('priezvisko', c.priezvisko);
+  set('meno',       c.meno);
+  set('dic',        c.dic);
+  set('rc',         c.rc);
+  set('email',      c.email);
+  set('telefon',    c.telefon);
+  set('ulica',      c.ulica);
+  set('cislo',      c.cislo);
+  set('psc',        c.psc);
+  set('obec',       c.obec);
+  set('nace',       c.nace);
+
+  // Update page hero subtitle
+  const sub = document.querySelector('.subtitle');
+  if (sub) sub.textContent = `Zdaňovacie obdobie 2025 · ${c.priezvisko} ${c.meno}`;
+
+  // Load saved tax data for this client (rok 2025)
+  loadPriznanie(id);
+
+  closeCM();
+  goPage(0);
+  showSaved(`✓ Klient: ${c.priezvisko} ${c.meno}`);
+}
+
+// ── PRIZNANIE (ANNUAL DATA) ──
+let saveTimeout = null;
+
+async function loadPriznanie(clientId) {
+  const { data } = await sb
+    .from('priznania')
+    .select('*')
+    .eq('klient_id', clientId)
+    .eq('rok', 2025)
+    .single();
+
+  if (!data || !data.sumy) return;
+  const s = data.sumy;
+  // Restore all input values
+  Object.keys(s).forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (el.type === 'checkbox') el.checked = !!s[id];
+    else if (el.type === 'radio') { if (el.value === s[id]) el.checked = true; }
+    else el.value = s[id];
+  });
+  // Also restore radio groups by name
+  if (s.__radios) {
+    Object.keys(s.__radios).forEach(name => {
+      const els = document.querySelectorAll(`input[type="radio"][name="${name}"]`);
+      els.forEach(r => { if (r.value === s.__radios[name]) r.checked = true; });
+    });
+  }
+  calc5(); calc(); calcBonus();
+}
+
+function gatherFormData() {
+  const data = {};
+  const radios = {};
+  document.querySelectorAll('input, select').forEach(el => {
+    if (!el.id && !el.name) return;
+    if (el.type === 'radio') {
+      if (el.name && el.checked) radios[el.name] = el.value;
+    } else if (el.type === 'checkbox') {
+      if (el.id) data[el.id] = el.checked;
+    } else {
+      if (el.id) data[el.id] = el.value;
+    }
+  });
+  data.__radios = radios;
+  return data;
+}
+
+async function autosave() {
+  if (!currentClientId) return;
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(async () => {
+    const sumy = gatherFormData();
+    const { error } = await sb.from('priznania').upsert({
+      klient_id: currentClientId,
+      rok: 2025,
+      sumy,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'klient_id,rok' });
+    if (!error) showSaved();
+  }, 1500);
+}
+
+function showSaved(msg = '✓ Uložené') {
+  const el = document.getElementById('saveIndicator');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// Attach autosave to all inputs
+function attachAutosave() {
+  document.querySelectorAll('input, select').forEach(el => {
+    el.addEventListener('change', autosave);
+    if (el.tagName === 'INPUT' && el.type !== 'checkbox' && el.type !== 'radio') {
+      el.addEventListener('input', autosave);
+    }
+  });
+}
+
+// ── SQL SCHEMA BOOTSTRAP ──
+async function ensureSchema() {
+  // Just try to select; if tables don't exist the app still works
+  // User must run the SQL from setup instructions
+}
+
+// Init
+calc5(); calc();
+attachAutosave();
+initAuth();
+</script>
 </body>
 </html>
