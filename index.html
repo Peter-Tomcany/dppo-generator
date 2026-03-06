@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DPPO 2025 – Generátor XML | Helwitax</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg1: #0a1628; --bg2: #1a2744; --bg3: #0d2137;
+  --card: rgba(255,255,255,0.04); --border: rgba(100,160,255,0.12);
+  --accent: #4d9de0; --accent2: #6ba3d6; --text: #e0e8f0; --muted: #7da4c7;
+  --input-bg: rgba(0,0,0,0.3); --input-border: rgba(100,160,255,0.2);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  min-height: 100vh; font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  background: linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 50%, var(--bg3) 100%);
+  color: var(--text);
+}
+.topbar {
+  background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border);
+  padding: 20px 28px; display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px;
+}
+.topbar-brand { font-size: 11px; letter-spacing: 3px; color: var(--accent2); text-transform: uppercase; margin-bottom: 4px; }
+.topbar h1 { font-size: 22px; font-weight: 700; color: #fff; }
+.topbar h1 span { color: var(--accent); font-weight: 400; }
+.topbar-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.tabs {
+  display: flex; gap: 0; border-bottom: 1px solid var(--border);
+  background: rgba(0,0,0,0.15); padding: 0 28px; overflow-x: auto;
+}
+.tab-btn {
+  background: none; border: none; cursor: pointer; padding: 12px 20px;
+  font-size: 13px; font-weight: 400; color: var(--muted);
+  border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap;
+}
+.tab-btn.active { font-weight: 700; color: #fff; border-bottom-color: var(--accent); }
+.tab-btn:hover { color: #fff; }
+.content { padding: 24px 28px; max-width: 1020px; margin: 0 auto; }
+.card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 24px; margin-bottom: 16px;
+}
+.section-title { font-size: 15px; font-weight: 700; color: var(--accent); letter-spacing: 0.3px; margin: 0 0 16px; }
+.section-divider {
+  grid-column: 1 / -1; padding: 10px 0 4px; font-size: 12px; font-weight: 700;
+  color: var(--accent); border-top: 1px solid rgba(100,160,255,0.1); margin-top: 8px; letter-spacing: 0.5px;
+}
+.upload-area {
+  border: 2px dashed rgba(100,160,255,0.25); border-radius: 16px; padding: 60px 20px;
+  text-align: center; background: rgba(255,255,255,0.02); transition: all 0.2s; margin-top: 60px;
+}
+.upload-area.drag { border-color: var(--accent); background: rgba(77,157,224,0.08); }
+.upload-area .icon { font-size: 48px; margin-bottom: 16px; }
+.upload-area h2 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+.upload-area p { color: var(--muted); margin-bottom: 20px; font-size: 14px; }
+.btn {
+  border: none; border-radius: 8px; padding: 8px 18px; font-size: 13px;
+  font-weight: 600; cursor: pointer; color: #fff; transition: filter 0.15s;
+}
+.btn:hover { filter: brightness(1.15); }
+.btn-blue { background: #2563eb; }
+.btn-green { background: #059669; }
+.btn-gray { background: #6b7280; }
+.btn-sm { padding: 4px 12px; font-size: 12px; }
+label.btn { display: inline-block; }
+label.btn input[type="file"] { display: none; }
+.grid-table { display: grid; grid-template-columns: 80px 1fr 150px; gap: 0; }
+.th { padding: 8px; font-size: 11px; font-weight: 700; color: var(--accent2); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid rgba(100,160,255,0.15); }
+.th-right { text-align: right; }
+.td { padding: 6px 8px; font-size: 13px; border-bottom: 1px solid rgba(100,160,255,0.05); }
+.td-num { padding: 3px 0; text-align: right; border-bottom: 1px solid rgba(100,160,255,0.05); }
+.td-muted { color: var(--muted); }
+.td-bold { font-weight: 700; }
+.td-bold-w { font-weight: 600; }
+input.num-input {
+  width: 100%; text-align: right; background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(100,160,255,0.1); border-radius: 4px; color: #c8dae8;
+  padding: 5px 8px; font-size: 13px; font-family: 'Consolas', 'Monaco', monospace;
+}
+input.num-input.bold { color: #fff; font-weight: 700; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.field input[type="text"], .field input[type="number"] {
+  width: 100%; background: var(--input-bg); border: 1px solid var(--input-border);
+  border-radius: 6px; color: var(--text); padding: 8px 10px; font-size: 14px; font-family: inherit;
+}
+.field.full { grid-column: 1 / -1; }
+.check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.check-label {
+  display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 6px 0; font-size: 13px;
+}
+.check-label input { accent-color: var(--accent); width: 16px; height: 16px; }
+textarea.oz-area {
+  width: 100%; background: var(--input-bg); border: 1px solid var(--input-border);
+  border-radius: 8px; color: var(--text); padding: 10px 12px; font-size: 13px;
+  font-family: inherit; resize: vertical;
+}
+.xml-pre {
+  background: rgba(0,0,0,0.4); border-radius: 8px; padding: 16px; font-size: 11px;
+  line-height: 1.5; overflow-x: auto; max-height: 600px; color: #a8d4f0;
+  border: 1px solid rgba(100,160,255,0.1); white-space: pre-wrap; word-break: break-all;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+.info-bar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 20px;
+}
+.info-bar .label { color: var(--accent2); font-size: 13px; }
+.info-bar .value { font-weight: 600; }
+.info-bar .count { color: var(--muted); font-size: 13px; }
+@media (max-width: 700px) {
+  .form-grid, .check-grid { grid-template-columns: 1fr; }
+  .grid-table { grid-template-columns: 60px 1fr 110px; }
+  .content { padding: 16px; }
+  .topbar { padding: 16px; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <div class="topbar-brand">Helwitax · Generátor XML</div>
+    <h1>Daňové priznanie PO <span>2025</span></h1>
+  </div>
+  <div class="topbar-actions" id="topActions" style="display:none">
+    <button class="btn btn-blue" onclick="doGenerate()">Generovať XML</button>
+    <button class="btn btn-green" onclick="doDownload()">⬇ Stiahnuť XML</button>
+  </div>
+</div>
+
+<div class="tabs" id="tabBar" style="display:none">
+  <button class="tab-btn active" data-tab="data">Dáta z Excelu</button>
+  <button class="tab-btn" data-tab="header">Hlavička DP</button>
+  <button class="tab-btn" data-tab="osoba">Oprávnená osoba</button>
+  <button class="tab-btn" data-tab="xml">XML náhľad</button>
+</div>
+
+<div class="content">
+  <div id="uploadArea" class="upload-area"
+    ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+    <div class="icon">📊</div>
+    <h2>Pretiahnite Excel súbor sem</h2>
+    <p>Výpočet_ZD_2025.xlsm alebo podobný súbor s hárkom „Pomôcka k DP"</p>
+    <label class="btn btn-blue">Vybrať súbor
+      <input type="file" accept=".xlsx,.xlsm,.xls" onchange="handleFileInput(event)">
+    </label>
+  </div>
+  <div id="tab-data" class="tab-content" style="display:none"></div>
+  <div id="tab-header" class="tab-content" style="display:none"></div>
+  <div id="tab-osoba" class="tab-content" style="display:none"></div>
+  <div id="tab-xml" class="tab-content" style="display:none"></div>
+</div>
+
+<script>
+// =====================================================================
+// CONSTANTS
+// =====================================================================
+const ROW_MAP = [
+  [100,"r100"],[110,"r110"],[130,"r130"],[140,"r140"],[150,"r150"],
+  [170,"r170"],[180,"r180"],[200,"r200"],[210,"r210"],[220,"r220"],
+  [230,"r230"],[240,"r240"],[250,"r250"],[260,"r260"],[270,"r270"],
+  [280,"r280"],[290,"r290"],[300,"r300"],[301,"r301"],[302,"r302"],
+  [303,"r303"],[304,"r304"],[305,"r305"],[306,"r306"],[307,"r307"],
+  [308,"r308"],[310,"r310"],[320,"r320"],[330,"r330"],[400,"r400"],
+  [410,"r410"],[500,"r500"],[501,"r501"],[502,"r502"],[503,"r503"],
+  [510,"r510"],[550,"r550"],[560,"r560"],[600,"r600"],
+  [700,"r700"],[710,"r710"],[800,"r800"],[810,"r810"],
+  [820,"r820"],[830,"r830"],[840,"r840"],[900,"r900"],
+  [910,"r910"],[920,"r920"],[1000,"r1000"],[1010,"r1010"],
+  [1020,"r1020"],[1030,"r1030"],[1040,"r1040"],[1050,"r1050"],
+  [1060,"r1060"],[1061,"r1061"],[1062,"r1062"],[1070,"r1070"],
+  [1071,"r1071"],[1080,"r1080"],[1090,"r1090"],[1100,"r1100"],
+  [1101,"r1101"],[1110,"r1110"],
+];
+
+const ROW_LABELS = {
+  100:"VH pred zdanením",110:"Transferové oceňovanie §17(5)",
+  130:"Nedaňové výdavky §21, §17k, §21a (tab. A)",140:"Nezaplatené výdavky §17(19)",
+  150:"Odpisy – účtovné > daňové (tab. B)",170:"Likvidácia, konkurz, vklady §17(8)",
+  180:"Ostatné sumy zvyšujúce VH",200:"Súčet r.100 až r.180",
+  210:"Príjmy nie sú predmetom dane §12(7)",220:"Príjmy zdanené zrážkou §43",
+  230:"Príjmy oslobodené §13",240:"Oslobodenie §13a, §13b",
+  250:"Odpisy – daňové > účtovné (tab. B)",260:"Oslobodenie §13c (predaj akcií/podielov)",
+  270:"Zaplatené výdavky §17(19)",280:"Zníženie ZD – likvidácia, vklady",
+  290:"Ostatné sumy znižujúce VH",300:"Súčet r.210 až r.290",
+  301:"Základ dane / daňová strata",302:"Osobné auto ≥48 000 EUR §17(34)",
+  303:"Členské príspevky §19(3)(n)",304:"Víno – reklamný predmet §21(1)(h)",
+  305:"Sponzorské §17(19)(h)",306:"Zvýšenie ZD – motorové vozidlo §17(39)",
+  307:"Zníženie ZD – praktické vyučovanie §17(37)",308:"CFC – kontrolované zahraničné spoločnosti §17h",
+  310:"Upravený ZD / daňová strata",320:"Časť ZD v.o.s. / k.s.",
+  330:"Vyňatie príjmov zo zahraničia",400:"ZD / daňová strata pred odpočtom straty",
+  410:"Odpočet daňovej straty (tab. D)",500:"ZD po odpočte straty",
+  501:"Odpočet R&D §30c",502:"Odpočet investície §30e",503:"Odpočet šport §30ca",
+  510:"ZD po odpočtoch",550:"Sadzba dane",560:"Úhrn zdaniteľných príjmov",
+  600:"Daň",610:"Úľava na dani",700:"Daň znížená o úľavu",
+  710:"Zápočet dane zo zahraničia (tab. E)",800:"Daň po úľavách a zápočte",
+  810:"Minimálna daň §46b",820:"Minimálna daň na úhradu",
+  830:"Kladný rozdiel min. daň – daň",840:"Min. daň – zmena ZO",
+  900:"Daň / minimálna daň",910:"Rozdiel daň – min. daň pre zápočet",
+  920:"Zápočet min. dane (tab. K)",1000:"Daň po zápočte min. dane",
+  1010:"Zaplatené preddavky §42",1020:"Preddavky z min. obdobia",
+  1030:"Daň zrazená §43(6,7)",1040:"Celkové preddavky",
+  1050:"Daň / min. daň pred úpravou",1060:"Daň §17f",
+  1061:"Daň §17f – EÚ/EHP",1062:"Daň §17f – mimo EÚ",
+  1070:"Daň §51e (dividendy)",1071:"Daň §51ea (štátne dlhopisy)",
+  1080:"Celková daň",1090:"Daň §17f v splátkach",
+  1100:"Daň na úhradu (+)",1101:"Daňový preplatok (–)",1110:"Daň pre preddavky §42(6)",
+};
+
+const SECTION_HEADERS = {
+  100:"II. časť – Výpočet základu dane a dane",
+  301:"Základ dane / daňová strata",
+  310:"Výpočet dane",
+  810:"Minimálna daň",
+  1010:"Preddavky a splatná daň",
+};
+
+const BOLD_ROWS = new Set([200,300,301,310,400,500,510,600,700,800,900,1050,1080,1100,1101]);
+
+const TAB_B_LABELS = {
+  'B1':'Účtovné odpisy dlhodobého hmotného majetku',
+  'B2':'Daňové odpisy hmotného majetku',
+  'B3':'Neuplatnená časť ročného odpisu prenajatého majetku',
+  'B4':'Prerušenie uplatňovania daňových odpisov',
+  'B5':'Pomerná časť ročného odpisu pri predaji hmotného majetku',
+  'B6':'Odpisy hmotného majetku zahrnuté do základu dane',
+};
+
+// =====================================================================
+// EXCEL PARSER
+// =====================================================================
+function parseExcelFile(arrayBuffer) {
+  const wb = XLSX.read(arrayBuffer, {type:'array'});
+  const result = {header:{}, rows:{}, tabARows:{}, tabBRows:{}};
+
+  // --- Základné údaje ---
+  if (wb.SheetNames.indexOf('Základné údaje') >= 0) {
+    const ws = wb.Sheets['Základné údaje'];
+    const cv = (c) => ws[c] ? ws[c].v : '';
+    result.header.obchodneMeno = cv('C3');
+    result.header.sidloUlica = cv('C4');
+    result.header.sidloCislo = cv('C5');
+    result.header.sidloPsc = String(cv('C6'));
+    result.header.sidloObec = cv('C7');
+    result.header.sidloStat = cv('C8') || 'Slovenská republika';
+    result.header.ico = String(cv('C9'));
+    result.header.dic = String(cv('C10'));
+    const pf = String(cv('C11'));
+    const pfm = pf.match(/^(\d{3})/);
+    if (pfm) result.header.pravnaForma = pfm[1];
+    const nace = String(cv('C12')).replace(/\./g,'');
+    if (nace.length >= 4) {
+      result.header.skNaceK1 = nace.substring(0,2);
+      result.header.skNaceK2 = nace.substring(2,4);
+      result.header.skNaceK3 = nace.length >= 5 ? nace.substring(4,5) : '';
+    }
+    const dOd = cv('C13'), dDo = cv('C14');
+    if (dOd) result.header.zdanObdOd = fmtDate(dOd);
+    if (dDo) result.header.zdanObdDo = fmtDate(dDo);
+    const mikro = String(cv('C15')).toUpperCase();
+    result.header.mikrodanovnik = (mikro==='ÁNO'||mikro==='ANO') ? 1 : 0;
+    const zdanPrijmy = cv('C19');
+    if (zdanPrijmy && typeof zdanPrijmy === 'number') result.rows[560] = zdanPrijmy;
+  }
+
+  // --- Pomôcka k DP ---
+  if (wb.SheetNames.indexOf('Pomôcka k DP') >= 0) {
+    const ws = wb.Sheets['Pomôcka k DP'];
+    const range = XLSX.utils.decode_range(ws['!ref']||'A1:E100');
+    for (let R = range.s.r; R <= range.e.r; R++) {
+      const cC = ws[XLSX.utils.encode_cell({r:R,c:2})];
+      const cD = ws[XLSX.utils.encode_cell({r:R,c:3})];
+      const cE = ws[XLSX.utils.encode_cell({r:R,c:4})];
+      const valE = cE ? cE.v : null;
+      if (cC && typeof cC.v === 'number') {
+        const rn = cC.v;
+        if (ROW_MAP.some(x => x[0]===rn) || rn===610) result.rows[rn] = valE;
+      }
+      if (cD && typeof cD.v === 'string' && cD.v.startsWith('130/A')) {
+        result.tabARows[cD.v] = valE;
+      }
+    }
+  }
+
+  // --- Pomocné výpočty → Tabuľka B ---
+  if (wb.SheetNames.indexOf('Pomocné výpočty') >= 0) {
+    const ws = wb.Sheets['Pomocné výpočty'];
+    for (let R = 9; R <= 15; R++) {
+      const cB = ws[XLSX.utils.encode_cell({r:R,c:1})];
+      const cH = ws[XLSX.utils.encode_cell({r:R,c:7})];
+      if (cB && typeof cB.v === 'string' && cB.v.match(/^B\d$/)) {
+        result.tabBRows[cB.v] = cH ? cH.v : null;
+      }
+    }
+  }
+
+  return result;
+}
+
+function fmtDate(v) {
+  if (!v) return '';
+  if (v instanceof Date) return v.getDate()+'.'+(v.getMonth()+1)+'.'+v.getFullYear();
+  return String(v);
+}
+
+// =====================================================================
+// XML GENERATOR
+// =====================================================================
+function fmtDec(v) {
+  if (v===null||v===undefined||v===''||v===0) return '';
+  const n = typeof v==='number' ? v : parseFloat(String(v).replace(',','.'));
+  return isNaN(n) ? '' : n.toFixed(2);
+}
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function xmlEl(tag,val) { return '<'+tag+'>'+esc(val)+'</'+tag+'>'; }
+function xmlDec(tag,val) { return '<'+tag+'>'+esc(fmtDec(val))+'</'+tag+'>'; }
+
+function generateXml(header, rows, tabARows, tabBRows) {
+  const h = header;
+  const rv = (n) => rows[n] ?? '';
+  const t2s = () => '<s1></s1><s2></s2>';
+  const pad2 = (i) => String(i).padStart(2,'0');
+  tabBRows = tabBRows || {};
+
+  let teloRows = '';
+  for (const [rNum,xmlName] of ROW_MAP) {
+    if (rNum===610) continue;
+    teloRows += xmlDec(xmlName, rv(rNum)) + '\n';
+  }
+  const r610 = '<r610><text></text><suma>'+esc(fmtDec(rv(610)))+'</suma></r610>\n';
+  teloRows = teloRows.replace('</r600>\n', '</r600>\n'+r610);
+  teloRows += xmlEl('ddpDatum','') + '\n';
+  [1120,1130,1140,1150,1160,1170,1180,1190,1191,1192].forEach(r => { teloRows += xmlDec('r'+r,'') + '\n'; });
+
+  let tabA = '<tabA>\n';
+  for (let i=1;i<=17;i++) tabA += xmlDec('r'+pad2(i), tabARows['130/A'+i]??'') + '\n';
+  tabA += '</tabA>\n';
+
+  let tabB = '<tabB>\n';
+  for (let i=1;i<=6;i++) tabB += xmlDec('r'+pad2(i), tabBRows['B'+i]??'') + '\n';
+  tabB += '</tabB>\n';
+
+  function emptyTab6(name) {
+    let s='<'+name+'>\n';
+    for (let i=1;i<=6;i++) s+=xmlDec('r'+pad2(i),'')+'\n';
+    return s+'</'+name+'>\n';
+  }
+
+  let tabD='<tabD>\n<tabDs01>'+xmlDec('r01','')+xmlDec('r02','')+xmlDec('r03','')+'</tabDs01>\n';
+  for (let i=2;i<=8;i++) tabD+='<tabDs'+pad2(i)+'>'+xmlEl('datumOd','')+xmlEl('datumDo','')+xmlDec('r01','')+xmlDec('r02','')+xmlDec('r03','')+'</tabDs'+pad2(i)+'>\n';
+  tabD+='<tabDs09>'+xmlDec('r01','')+xmlDec('r02','')+xmlDec('r03','')+'</tabDs09>\n</tabD>\n';
+
+  let tabE='<tabE>\n'; for (let i=1;i<=10;i++) tabE+=xmlDec('r'+pad2(i),'')+'\n'; tabE+='</tabE>\n';
+  let tabF='<tabF>\n'; for (let i=1;i<=3;i++) tabF+=xmlDec('r'+pad2(i),'')+'\n'; tabF+='</tabF>\n';
+
+  function tabG(name,cnt) { let s='<'+name+'>\n'; for (let i=1;i<=cnt;i++) s+=xmlDec('r'+pad2(i),'')+'\n'; return s+'</'+name+'>\n'; }
+
+  let tabH='<tabH>\n'+xmlDec('r01','')+'\n<prijmy>';
+  for (let i=2;i<=10;i++) tabH+=xmlDec('r'+pad2(i),'');
+  tabH+='</prijmy>\n<vydavky>';
+  for (let i=2;i<=10;i++) tabH+=xmlDec('r'+pad2(i),'');
+  tabH+='</vydavky>\n'+xmlDec('r11','')+'\n</tabH>\n';
+
+  const emptyTr=()=>xmlEl('druh','')+xmlDec('vplyvNaR100','')+xmlEl('nazovZavislejOsoby','')+xmlEl('kodStatu','');
+  let tabI='<tabI>\n'; for (let i=1;i<=18;i++) tabI+='<r'+pad2(i)+'>'+emptyTr()+'</r'+pad2(i)+'>\n'; tabI+='</tabI>\n';
+  let tabJ='<tabJ>'+xmlDec('r01','')+xmlDec('r02','')+'</tabJ>\n';
+  let obm='<obmedzenaDanovaPovinnost>'+xmlEl('datumOd','')+xmlEl('datumDo','')+xmlEl('TIN','')+'</obmedzenaDanovaPovinnost>\n';
+
+  let tabK='<tabK>\n<obdobiaMinimalDane>\n';
+  for (let i=1;i<=4;i++) tabK+='<obdobie'+i+'>'+xmlEl('datumOd','')+xmlEl('datumDo','')+xmlDec('vyskaKladnehoRozdielu','')+xmlDec('zapocitanaVPredObdobiach','')+xmlDec('zapocitanaVDanomObdobi','')+xmlDec('zostavajucaCast','')+'</obdobie'+i+'>\n';
+  tabK+='</obdobiaMinimalDane>\n<spolu>'+xmlDec('zapocitanaVDanomObdobi','')+xmlDec('zostavajucaCast','')+'</spolu>\n</tabK>\n';
+
+  let z17='<zdaneniePar17f>\n';
+  for (let i=1;i<=6;i++) z17+='<r'+pad2(i)+'>'+t2s()+'</r'+pad2(i)+'>\n';
+  for (let i=7;i<=13;i++) z17+=xmlDec('r'+pad2(i),'')+'\n';
+  for (let i=14;i<=19;i++) z17+='<r'+pad2(i)+'>'+t2s()+'</r'+pad2(i)+'>\n';
+  for (let i=20;i<=27;i++) z17+=xmlDec('r'+pad2(i),'')+'\n';
+  z17+='<r28></r28>\n';
+  for (let i=29;i<=31;i++) z17+=xmlDec('r'+pad2(i),'')+'\n';
+  z17+='</zdaneniePar17f>\n';
+
+  let p51='<podielyNaZiskuPar51e>\n';
+  for (let i=1;i<=3;i++) p51+=xmlDec('r'+pad2(i),'')+'\n';
+  for (let i=4;i<=6;i++) p51+='<r'+pad2(i)+'>'+t2s()+'</r'+pad2(i)+'>\n';
+  p51+=xmlDec('r07','')+'\n<r08></r08>\n'+xmlDec('r09','')+'\n</podielyNaZiskuPar51e>\n';
+
+  let vsd='<vynosyZoStatnychDlhopisov>\n';
+  for (let i=1;i<=3;i++) vsd+='<r'+i+'>'+t2s()+'</r'+i+'>';
+  vsd+='<r4><s1>16</s1><s2>13</s2></r4>';
+  for (let i=5;i<=14;i++) vsd+='<r'+i+'>'+t2s()+'</r'+i+'>';
+  vsd+='\n</vynosyZoStatnychDlhopisov>\n';
+
+  let c7=xmlEl('c7paragraf50',h.c7paragraf50)+'\n'+xmlEl('suhlasZasl',h.suhlasZasl)+'\n';
+  c7+=xmlDec('c7r1','')+xmlDec('c7r2','')+xmlDec('c7r3','')+xmlDec('c7r4','')+'\n<c7r5></c7r5>\n';
+  c7+='<c7prijimatel1>'+xmlDec('suma','')+'<ico></ico><obchodneMeno><riadok></riadok><riadok></riadok></obchodneMeno></c7prijimatel1>\n';
+
+  let op='<opravnenaOsoba>\n'+xmlEl('priezvisko',h.opPriezvisko)+xmlEl('meno',h.opMeno)+xmlEl('titul',h.opTitul)+xmlEl('titulZa',h.opTitulZa)+xmlEl('postavenie',h.opPostavenie)+'\n';
+  op+='<trvalyPobyt>'+xmlEl('ulica',h.opUlica)+xmlEl('cislo',h.opCislo)+xmlEl('psc',h.opPsc)+xmlEl('obec',h.opObec)+xmlEl('stat',h.opStat)+xmlEl('tel',h.opTel)+xmlEl('emailFax',h.opEmail)+'</trvalyPobyt>\n</opravnenaOsoba>\n';
+
+  let pl='<platenieDanePar17f>\n'+xmlEl('ziadam17f','0')+'\n';
+  for (let i=0;i<5;i++) pl+='<splatka>'+xmlEl('datumSplat','')+xmlDec('suma','')+'</splatka>\n';
+  pl+=xmlEl('datum','')+'\n</platenieDanePar17f>\n';
+
+  let vr='<vrateniePreplatku>\n'+xmlEl('vratit','0')+'\n<sposobPlatby>'+xmlEl('poukazka','0')+xmlEl('ucet','0')+'</sposobPlatby>\n';
+  vr+='<bankovyUcet>'+xmlEl('IBAN','')+'</bankovyUcet>\n'+xmlEl('datum','')+'\n</vrateniePreplatku>\n';
+
+  let pr13='<prilPar13aA13b>'+xmlDec('r01','')+xmlEl('cisloPatentuSoftver','')+xmlDec('r02','')+xmlEl('cisloPatentu','')+xmlDec('r03','')+'</prilPar13aA13b>\n';
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<dokument>
+<hlavicka>
+${xmlEl('dic',h.dic)}
+${xmlEl('ico',h.ico)}
+${xmlEl('pravnaForma',h.pravnaForma)}
+<typDP>${xmlEl('rdp',h.rdp)}${xmlEl('odp',h.odp)}${xmlEl('ddp',h.ddp)}</typDP>
+<zdanovacieObdobie>${xmlEl('od',h.zdanObdOd)}${xmlEl('do',h.zdanObdDo)}</zdanovacieObdobie>
+<skNace><k1>${esc(h.skNaceK1)}</k1><k2>${esc(h.skNaceK2)}</k2><k3>${esc(h.skNaceK3)}</k3>${xmlEl('cinnost',h.skNaceCinnost)}</skNace>
+<obchodneMeno><riadok>${esc(h.obchodneMeno)}</riadok><riadok></riadok></obchodneMeno>
+<sidlo>${xmlEl('ulica',h.sidloUlica)}${xmlEl('cislo',h.sidloCislo)}${xmlEl('psc',h.sidloPsc)}${xmlEl('obec',h.sidloObec)}${xmlEl('stat',h.sidloStat)}${xmlEl('tel',h.sidloTel)}${xmlEl('emailFax',h.sidloEmail)}</sidlo>
+${xmlEl('uplatnujemPar17',h.uplatnujemPar17)}
+${xmlEl('ukoncujemUplatnovaniePar17',h.ukoncujemPar17)}
+${xmlEl('obmedzenie',h.obmedzenie)}
+${xmlEl('prepojenie',h.prepojenie)}
+${xmlEl('uplatnenieOslobodeniaPar13ab',h.oslobodenie13ab)}
+${xmlEl('mikrodanovnikPar2w',h.mikrodanovnik)}
+${xmlEl('polovicnaVyskaDanePar46b3',h.polovicna46b3)}
+${xmlEl('neplatenieMinDanePar46b7',h.neplatenie46b7)}
+${xmlEl('zapocitanieMinDanePar46b5',h.zapocitanie46b5)}
+<stalaPrevadzkaren>${xmlEl('ulica',h.spUlica)}${xmlEl('cislo',h.spCislo)}${xmlEl('psc',h.spPsc)}${xmlEl('obec',h.spObec)}${xmlEl('pocetSp',h.spPocet)}</stalaPrevadzkaren>
+</hlavicka>
+<telo>
+${teloRows}
+${tabA}${tabB}${emptyTab6('tabC1')}${emptyTab6('tabC2')}${tabD}${tabE}${tabF}${tabG('tabG1',3)}${tabG('tabG2',3)}${tabG('tabG3',4)}${tabH}${tabI}${tabJ}${obm}${tabK}${z17}${p51}${vsd}${c7}${xmlEl('osobitneZaznamy',h.osobitneZaznamy)}
+${op}${xmlEl('pocetPriloh',h.pocetPriloh)}
+${xmlEl('datumVyhlasenia',h.datumVyhlasenia)}
+${pl}${vr}${pr13}</telo>
+</dokument>`;
+}
+
+// =====================================================================
+// APP – STATE
+// =====================================================================
+let header = defaultHeader();
+let rows = {};
+let tabARows = {};
+let tabBRows = {};
+let loaded = false;
+let fileName = '';
+let activeTab = 'data';
+let xmlPreview = '';
+
+function defaultHeader() {
+  return {
+    dic:'', ico:'', pravnaForma:'112', skNaceK1:'', skNaceK2:'', skNaceK3:'',
+    skNaceCinnost:'', obchodneMeno:'', sidloUlica:'', sidloCislo:'',
+    sidloPsc:'', sidloObec:'', sidloStat:'Slovenská republika',
+    sidloTel:'', sidloEmail:'',
+    zdanObdOd:'1.1.2025', zdanObdDo:'31.12.2025',
+    rdp:1, odp:0, ddp:0,
+    uplatnujemPar17:0, ukoncujemPar17:0, obmedzenie:0, prepojenie:0,
+    oslobodenie13ab:0, mikrodanovnik:0, polovicna46b3:0,
+    neplatenie46b7:0, zapocitanie46b5:0,
+    spUlica:'', spCislo:'', spPsc:'', spObec:'', spPocet:'',
+    opPriezvisko:'', opMeno:'', opTitul:'', opTitulZa:'',
+    opPostavenie:'konateľ',
+    opUlica:'', opCislo:'', opPsc:'', opObec:'',
+    opStat:'Slovenská republika', opTel:'', opEmail:'',
+    pocetPriloh:'5', datumVyhlasenia:'',
+    c7paragraf50:0, suhlasZasl:0, osobitneZaznamy:'',
+  };
+}
+
+// =====================================================================
+// APP – FILE HANDLING
+// =====================================================================
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('uploadArea').classList.remove('drag');
+  const file = e.dataTransfer?.files?.[0];
+  if (file) processFile(file);
+}
+function handleDragOver(e) { e.preventDefault(); document.getElementById('uploadArea').classList.add('drag'); }
+function handleDragLeave() { document.getElementById('uploadArea').classList.remove('drag'); }
+function handleFileInput(e) { const file = e.target?.files?.[0]; if (file) processFile(file); }
+
+function processFile(file) {
+  fileName = file.name;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const result = parseExcelFile(e.target.result);
+      Object.assign(header, result.header);
+      rows = result.rows;
+      tabARows = result.tabARows;
+      tabBRows = result.tabBRows || {};
+      loaded = true;
+      renderApp();
+    } catch(err) { alert('Chyba pri načítaní: ' + err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// =====================================================================
+// APP – ACTIONS
+// =====================================================================
+function doGenerate() {
+  xmlPreview = generateXml(header, rows, tabARows, tabBRows);
+  switchTab('xml');
+}
+function doDownload() {
+  const xml = generateXml(header, rows, tabARows, tabBRows);
+  const blob = new Blob([xml], {type:'application/xml;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const safeName = header.obchodneMeno ? header.obchodneMeno.replace(/[^a-zA-Z0-9áäčďéíľĺňóôŕšťúýžÁÄČĎÉÍĽĹŇÓÔŔŠŤÚÝŽ ]/g,'_').replace(/ /g,'_') : '';
+  a.download = safeName ? 'DPPO_2025_'+safeName+'.xml' : 'DPPO_2025.xml';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function resetApp() {
+  header = defaultHeader(); rows = {}; tabARows = {}; tabBRows = {};
+  loaded = false; fileName = ''; xmlPreview = '';
+  renderApp();
+  document.getElementById('uploadArea').style.display = 'block';
+}
+
+// =====================================================================
+// APP – UPDATE FUNCTIONS
+// =====================================================================
+function updateHeader(key,val) { header[key] = val; }
+function updateRow(rNum,val) {
+  if (val==='') { rows[rNum]=''; return; }
+  const n = Number(String(val).replace(',','.')); rows[rNum] = isNaN(n) ? val : n;
+}
+function updateTabA(key,val) {
+  if (val==='') { tabARows[key]=''; return; }
+  const n = Number(String(val).replace(',','.')); tabARows[key] = isNaN(n) ? val : n;
+}
+function updateTabB(key,val) {
+  if (val==='') { tabBRows[key]=''; return; }
+  const n = Number(String(val).replace(',','.')); tabBRows[key] = isNaN(n) ? val : n;
+}
+
+// =====================================================================
+// APP – TAB SWITCHING
+// =====================================================================
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab===tab));
+  document.querySelectorAll('.tab-content').forEach(el => el.style.display='none');
+  const target = document.getElementById('tab-'+tab);
+  if (target) target.style.display = 'block';
+  if (tab==='xml') {
+    if (!xmlPreview) xmlPreview = generateXml(header, rows, tabARows, tabBRows);
+    renderXmlTab();
+  }
+}
+
+// =====================================================================
+// APP – RENDER
+// =====================================================================
+function renderApp() {
+  document.getElementById('uploadArea').style.display = loaded ? 'none' : 'block';
+  document.getElementById('topActions').style.display = loaded ? 'flex' : 'none';
+  document.getElementById('tabBar').style.display = loaded ? 'flex' : 'none';
+  if (loaded) { renderDataTab(); renderHeaderTab(); renderOsobaTab(); renderXmlTab(); switchTab('data'); }
+}
+
+function renderDataTab() {
+  const nonZero = ROW_MAP.filter(([rn])=>{const v=rows[rn]; return v!==null&&v!==undefined&&v!==0&&v!=='';}).length;
+  let html = '';
+  html += '<div class="card info-bar"><span class="label">Načítané z:</span> <span class="value">'+esc(fileName)+'</span>';
+  html += '<span class="count">('+nonZero+' nenulových riadkov)</span>';
+  html += '<button class="btn btn-gray btn-sm" onclick="resetApp()">Nový súbor</button></div>';
+
+  html += '<div class="card"><h3 class="section-title">II. časť – Výpočet základu dane a dane</h3>';
+  html += '<div class="grid-table"><div class="th">Riadok</div><div class="th">Popis</div><div class="th th-right">Suma (EUR)</div>';
+  for (const [rNum] of ROW_MAP) {
+    const sh = SECTION_HEADERS[rNum];
+    if (sh) html += '<div class="section-divider">'+esc(sh)+'</div>';
+    const bold = BOLD_ROWS.has(rNum);
+    const val = rows[rNum] ?? '';
+    html += '<div class="td td-muted'+(bold?' td-bold':'')+'">r.'+rNum+'</div>';
+    html += '<div class="td'+(bold?' td-bold-w':'')+'">'+(ROW_LABELS[rNum]||'')+'</div>';
+    html += '<div class="td-num"><input class="num-input'+(bold?' bold':'')+'" value="'+esc(val)+'" onchange="updateRow('+rNum+',this.value)"></div>';
+  }
+  html += '</div></div>';
+
+  // Tab A
+  html += '<div class="card"><h3 class="section-title">Tabuľka A – Nedaňové výdavky (rozpis r.130)</h3>';
+  html += '<div class="grid-table"><div class="th">Riadok</div><div class="th">Označenie</div><div class="th th-right">Suma (EUR)</div>';
+  for (let i=1;i<=17;i++) {
+    const key='130/A'+i; const val=tabARows[key]??'';
+    html += '<div class="td td-muted">A'+i+'</div><div class="td">'+key+'</div>';
+    html += '<div class="td-num"><input class="num-input" value="'+esc(val)+'" onchange="updateTabA(\''+key+'\',this.value)"></div>';
+  }
+  html += '</div></div>';
+
+  // Tab B
+  html += '<div class="card"><h3 class="section-title">Tabuľka B – Odpisy hmotného majetku</h3>';
+  html += '<div class="grid-table"><div class="th">Riadok</div><div class="th">Popis</div><div class="th th-right">Suma (EUR)</div>';
+  for (let i=1;i<=6;i++) {
+    const key='B'+i; const val=tabBRows[key]??''; const bold=(i===6);
+    html += '<div class="td td-muted'+(bold?' td-bold':'')+'">'+key+'</div>';
+    html += '<div class="td'+(bold?' td-bold-w':'')+'">'+(TAB_B_LABELS[key]||'')+'</div>';
+    html += '<div class="td-num"><input class="num-input'+(bold?' bold':'')+'" value="'+esc(val)+'" onchange="updateTabB(\''+key+'\',this.value)"></div>';
+  }
+  html += '</div></div>';
+
+  document.getElementById('tab-data').innerHTML = html;
+}
+
+function renderHeaderTab() {
+  const h = header;
+  let html = '<div class="card"><h3 class="section-title">I. časť – Údaje o daňovníkovi</h3><div class="form-grid">';
+  html += field('DIČ','dic',h.dic)+field('IČO','ico',h.ico);
+  html += field('Obchodné meno','obchodneMeno',h.obchodneMeno,true);
+  html += field('Právna forma (kód)','pravnaForma',h.pravnaForma);
+  html += field('SK NACE k1 (2 č.)','skNaceK1',h.skNaceK1)+field('SK NACE k2 (2 č.)','skNaceK2',h.skNaceK2);
+  html += field('SK NACE k3 (1 č.)','skNaceK3',h.skNaceK3)+field('Hlavná činnosť','skNaceCinnost',h.skNaceCinnost);
+  html += '</div>';
+  html += '<h3 class="section-title" style="margin-top:24px">Sídlo</h3><div class="form-grid">';
+  html += field('Ulica','sidloUlica',h.sidloUlica)+field('Číslo','sidloCislo',h.sidloCislo);
+  html += field('PSČ','sidloPsc',h.sidloPsc)+field('Obec','sidloObec',h.sidloObec);
+  html += field('Štát','sidloStat',h.sidloStat)+field('Telefón','sidloTel',h.sidloTel);
+  html += field('E-mail / Fax','sidloEmail',h.sidloEmail)+'</div>';
+  html += '<h3 class="section-title" style="margin-top:24px">Zdaňovacie obdobie a typ DP</h3><div class="form-grid-3">';
+  html += field('Od','zdanObdOd',h.zdanObdOd)+field('Do','zdanObdDo',h.zdanObdDo)+'<div></div></div>';
+  html += '<div class="check-grid" style="margin-top:12px">';
+  html += check('Riadne DP','rdp',h.rdp)+check('Opravné DP','odp',h.odp)+check('Dodatočné DP','ddp',h.ddp)+'</div>';
+  html += '<h3 class="section-title" style="margin-top:24px">Označenia na str. 1</h3><div class="check-grid">';
+  html += check('Uplatňujem §17 ods. 17 (kurzové rozdiely)','uplatnujemPar17',h.uplatnujemPar17);
+  html += check('Ukončujem uplatňovanie §17 ods. 17','ukoncujemPar17',h.ukoncujemPar17);
+  html += check('Obmedzená daňová povinnosť','obmedzenie',h.obmedzenie);
+  html += check('Prepojenie (závislé osoby)','prepojenie',h.prepojenie);
+  html += check('Oslobodenie §13a / §13b','oslobodenie13ab',h.oslobodenie13ab);
+  html += check('Mikrodaňovník §2 písm. w)','mikrodanovnik',h.mikrodanovnik);
+  html += check('Polovičná min. daň §46b ods. 3','polovicna46b3',h.polovicna46b3);
+  html += check('Neplatí min. daň §46b ods. 7','neplatenie46b7',h.neplatenie46b7);
+  html += check('Započítanie min. dane §46b ods. 5','zapocitanie46b5',h.zapocitanie46b5);
+  html += '</div></div>';
+  document.getElementById('tab-header').innerHTML = html;
+}
+
+function renderOsobaTab() {
+  const h = header;
+  let html = '<div class="card"><h3 class="section-title">Oprávnená osoba</h3><div class="form-grid">';
+  html += field('Priezvisko','opPriezvisko',h.opPriezvisko)+field('Meno','opMeno',h.opMeno);
+  html += field('Titul pred','opTitul',h.opTitul)+field('Titul za','opTitulZa',h.opTitulZa);
+  html += field('Postavenie (napr. konateľ)','opPostavenie',h.opPostavenie)+'</div>';
+  html += '<h3 class="section-title" style="margin-top:24px">Trvalý pobyt</h3><div class="form-grid">';
+  html += field('Ulica','opUlica',h.opUlica)+field('Číslo','opCislo',h.opCislo);
+  html += field('PSČ','opPsc',h.opPsc)+field('Obec','opObec',h.opObec);
+  html += field('Štát','opStat',h.opStat)+field('Telefón','opTel',h.opTel);
+  html += field('E-mail','opEmail',h.opEmail)+'</div>';
+  html += '<h3 class="section-title" style="margin-top:24px">Vyhlásenie</h3><div class="form-grid">';
+  html += field('Počet príloh','pocetPriloh',h.pocetPriloh);
+  html += field('Dátum vyhlásenia (D.M.RRRR)','datumVyhlasenia',h.datumVyhlasenia)+'</div>';
+  html += '<h3 class="section-title" style="margin-top:24px">VII. časť – Poukázanie podielu dane</h3><div class="check-grid">';
+  html += check('Neuplatňujem §50','c7paragraf50',h.c7paragraf50);
+  html += check('Súhlas so zaslaním údajov','suhlasZasl',h.suhlasZasl)+'</div>';
+  html += '<h3 class="section-title" style="margin-top:24px">VIII. časť – Osobitné záznamy</h3>';
+  html += '<textarea class="oz-area" rows="5" onchange="header.osobitneZaznamy=this.value">'+esc(h.osobitneZaznamy)+'</textarea>';
+  html += '</div>';
+  document.getElementById('tab-osoba').innerHTML = html;
+}
+
+function renderXmlTab() {
+  if (!xmlPreview) xmlPreview = generateXml(header, rows, tabARows, tabBRows);
+  let html = '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">';
+  html += '<h3 class="section-title" style="margin:0">XML náhľad</h3>';
+  html += '<div style="display:flex;gap:10px"><button class="btn btn-blue" onclick="xmlPreview=generateXml(header,rows,tabARows,tabBRows);renderXmlTab()">Obnoviť</button>';
+  html += '<button class="btn btn-green" onclick="doDownload()">⬇ Stiahnuť</button></div></div>';
+  html += '<pre class="xml-pre">'+esc(xmlPreview)+'</pre></div>';
+  document.getElementById('tab-xml').innerHTML = html;
+}
+
+function field(label,key,val,full) {
+  return '<div class="field'+(full?' full':'')+'"><label>'+esc(label)+'</label>'
+    +'<input type="text" value="'+esc(val||'')+'" onchange="updateHeader(\''+key+'\',this.value)"></div>';
+}
+function check(label,key,val) {
+  return '<label class="check-label"><input type="checkbox" '+(val?'checked':'')+' onchange="updateHeader(\''+key+'\',this.checked?1:0)">'+esc(label)+'</label>';
+}
+
+// =====================================================================
+// INIT
+// =====================================================================
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.addEventListener('click', () => switchTab(b.dataset.tab));
+  });
+});
+</script>
+</body>
+</html>
