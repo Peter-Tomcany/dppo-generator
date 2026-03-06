@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DPPO 2025 – Generátor XML | Helwitax</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div>
+      <div class="topbar-brand">Helwitax · Generátor XML</div>
+      <h1>Daňové priznanie PO <span>2025</span></h1>
+    </div>
+    <div class="topbar-actions" id="topActions" style="display:none">
+      <button class="btn btn-blue" onclick="doGenerate()">Generovať XML</button>
+      <button class="btn btn-green" onclick="doDownload()">⬇ Stiahnuť XML</button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs" id="tabBar" style="display:none">
+    <button class="tab-btn active" data-tab="data">Dáta z Excelu</button>
+    <button class="tab-btn" data-tab="header">Hlavička DP</button>
+    <button class="tab-btn" data-tab="osoba">Oprávnená osoba</button>
+    <button class="tab-btn" data-tab="xml">XML náhľad</button>
+  </div>
+
+  <div class="content">
+
+    <!-- Upload area -->
+    <div id="uploadArea" class="upload-area"
+      ondrop="handleDrop(event)"
+      ondragover="handleDragOver(event)"
+      ondragleave="handleDragLeave(event)">
+      <div class="icon">📊</div>
+      <h2>Pretiahnite Excel súbor sem</h2>
+      <p>Výpočet_ZD_2025.xlsm alebo podobný súbor s hárkom „Pomôcka k DP"</p>
+      <label class="btn btn-blue">
+        Vybrať súbor
+        <input type="file" accept=".xlsx,.xlsm,.xls" onchange="handleFileInput(event)">
+      </label>
+    </div>
+
+    <!-- Tab panels -->
+    <div id="tab-data" class="tab-content" style="display:none"></div>
+    <div id="tab-header" class="tab-content" style="display:none"></div>
+    <div id="tab-osoba" class="tab-content" style="display:none"></div>
+    <div id="tab-xml" class="tab-content" style="display:none"></div>
+
+  </div>
+
+  <!-- JS modules (order matters) -->
+  <script src="js/constants.js"></script>
+  <script src="js/excel-parser.js"></script>
+  <script src="js/xml-generator.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>
