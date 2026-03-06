@@ -246,7 +246,7 @@ function parseExcelFile(arrayBuffer) {
     result.header.sidloCislo = cv('C5');
     result.header.sidloPsc = String(cv('C6'));
     result.header.sidloObec = cv('C7');
-    result.header.sidloStat = cv('C8') || 'Slovenská republika';
+    result.header.sidloStat = cv('C8') || 'Slovensko';
     result.header.ico = String(cv('C9'));
     result.header.dic = String(cv('C10'));
     const pf = String(cv('C11'));
@@ -303,7 +303,11 @@ function parseExcelFile(arrayBuffer) {
 
 function fmtDate(v) {
   if (!v) return '';
-  if (v instanceof Date) return v.getDate()+'.'+(v.getMonth()+1)+'.'+v.getFullYear();
+  if (v instanceof Date) {
+    const d = String(v.getDate()).padStart(2,'0');
+    const m = String(v.getMonth()+1).padStart(2,'0');
+    return d+'.'+m+'.'+v.getFullYear();
+  }
   return String(v);
 }
 
@@ -320,6 +324,13 @@ function esc(s) {
 }
 function xmlEl(tag,val) { return '<'+tag+'>'+esc(val)+'</'+tag+'>'; }
 function xmlDec(tag,val) { return '<'+tag+'>'+esc(fmtDec(val))+'</'+tag+'>'; }
+// xmlDecZ outputs 0.00 when value is 0 (for r900 etc.)
+function xmlDecZ(tag,val) {
+  const v = (val===null||val===undefined||val==='') ? '' : val;
+  if (v==='' ) return '<'+tag+'></'+tag+'>';
+  const n = typeof v==='number' ? v : parseFloat(String(v).replace(',','.'));
+  return '<'+tag+'>'+(isNaN(n)?'':n.toFixed(2))+'</'+tag+'>';
+}
 
 function generateXml(header, rows, tabARows, tabBRows) {
   const h = header;
@@ -331,7 +342,19 @@ function generateXml(header, rows, tabARows, tabBRows) {
   let teloRows = '';
   for (const [rNum,xmlName] of ROW_MAP) {
     if (rNum===610) continue;
-    teloRows += xmlDec(xmlName, rv(rNum)) + '\n';
+    // r550 = sadzba dane as integer (10, 21, 24), not decimal
+    if (rNum===550) {
+      const s = rv(550);
+      let sadzba = '';
+      if (s!==''&&s!==null&&s!==undefined) {
+        const n = typeof s==='number' ? s : parseFloat(String(s).replace(',','.'));
+        if (!isNaN(n)) sadzba = n < 1 ? String(Math.round(n*100)) : String(Math.round(n));
+      }
+      teloRows += '<r550>'+esc(sadzba)+'</r550>\n';
+    }
+    // r900 = outputs 0.00 when zero (not empty)
+    else if (rNum===900) { teloRows += xmlDecZ('r900', rv(900)) + '\n'; }
+    else { teloRows += xmlDec(xmlName, rv(rNum)) + '\n'; }
   }
   const r610 = '<r610><text></text><suma>'+esc(fmtDec(rv(610)))+'</suma></r610>\n';
   teloRows = teloRows.replace('</r600>\n', '</r600>\n'+r610);
@@ -412,6 +435,34 @@ function generateXml(header, rows, tabARows, tabBRows) {
 
   let pr13='<prilPar13aA13b>'+xmlDec('r01','')+xmlEl('cisloPatentuSoftver','')+xmlDec('r02','')+xmlEl('cisloPatentu','')+xmlDec('r03','')+'</prilPar13aA13b>\n';
 
+  // Príloha §30c – Odpočet výdavkov na výskum a vývoj
+  const emptyOdpocet = () => xmlEl('s01Od','')+xmlEl('s01Do','')+xmlDec('s02','')+xmlDec('s03','');
+  let pril30c = '<prilPar30cOdpocetVydavkov>\n';
+  pril30c += xmlEl('projektCislo','')+xmlEl('pocetProjektov','')+xmlEl('datumRealizacie','')+'\n';
+  for (let i=1;i<=5;i++) pril30c += '<r'+pad2(i)+'>'+emptyOdpocet()+'</r'+pad2(i)+'>\n';
+  pril30c += xmlDec('r06','')+'\n'+xmlEl('ciele','')+'\n';
+  pril30c += xmlDec('r07','')+'\n'+xmlDec('r08','')+'\n'+xmlDec('r09','')+'\n';
+  pril30c += '</prilPar30cOdpocetVydavkov>\n';
+
+  // Príloha §30ca – Odpočet výdavkov na podporu športu
+  let pril30ca = '<prilPar30caOdpocetVydavkovSport>\n';
+  for (let i=1;i<=5;i++) pril30ca += '<r'+pad2(i)+'>'+emptyOdpocet()+'</r'+pad2(i)+'>\n';
+  pril30ca += xmlDec('r06','')+'\n'+xmlDec('r07','')+'\n'+xmlDec('r08','')+'\n';
+  pril30ca += '</prilPar30caOdpocetVydavkovSport>\n';
+
+  // Príloha §30e – Výdavky na investície
+  const emptyInvesticia = () => xmlEl('s01Od','')+xmlEl('s01Do','')+xmlDec('s02','')+xmlDec('s03','')+xmlDec('s04','');
+  let pril30e = '<prilPar30eVydavkyInvesticie>\n';
+  for (let i=1;i<=10;i++) pril30e += '<r'+pad2(i)+'>'+emptyInvesticia()+'</r'+pad2(i)+'>\n';
+  pril30e += xmlDec('r11','')+'\n'+xmlDec('r12','')+'\n';
+  pril30e += '</prilPar30eVydavkyInvesticie>\n';
+
+  // Príloha k VII. časti – ďalší prijímatelia
+  let priloha = '<priloha>\n<prijimatel>\n';
+  priloha += xmlEl('poradoveCislo','')+xmlDec('suma','')+'\n';
+  priloha += '<ico></ico>\n<obchodneMeno><riadok></riadok><riadok></riadok></obchodneMeno>\n';
+  priloha += '</prijimatel>\n</priloha>\n';
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <dokument>
 <hlavicka>
@@ -421,8 +472,8 @@ ${xmlEl('pravnaForma',h.pravnaForma)}
 <typDP>${xmlEl('rdp',h.rdp)}${xmlEl('odp',h.odp)}${xmlEl('ddp',h.ddp)}</typDP>
 <zdanovacieObdobie>${xmlEl('od',h.zdanObdOd)}${xmlEl('do',h.zdanObdDo)}</zdanovacieObdobie>
 <skNace><k1>${esc(h.skNaceK1)}</k1><k2>${esc(h.skNaceK2)}</k2><k3>${esc(h.skNaceK3)}</k3>${xmlEl('cinnost',h.skNaceCinnost)}</skNace>
-<obchodneMeno><riadok>${esc(h.obchodneMeno)}</riadok><riadok></riadok></obchodneMeno>
-<sidlo>${xmlEl('ulica',h.sidloUlica)}${xmlEl('cislo',h.sidloCislo)}${xmlEl('psc',h.sidloPsc)}${xmlEl('obec',h.sidloObec)}${xmlEl('stat',h.sidloStat)}${xmlEl('tel',h.sidloTel)}${xmlEl('emailFax',h.sidloEmail)}</sidlo>
+<obchodneMeno><riadok>${esc(h.obchodneMeno)}</riadok><riadok></riadok><riadok></riadok></obchodneMeno>
+<sidlo>${xmlEl('ulica',h.sidloUlica)}${xmlEl('cislo',h.sidloCislo)}${xmlEl('psc',String(h.sidloPsc).replace(/\s/g,''))}${xmlEl('obec',h.sidloObec)}${xmlEl('stat',h.sidloStat)}${xmlEl('tel',h.sidloTel)}${xmlEl('emailFax',h.sidloEmail)}</sidlo>
 ${xmlEl('uplatnujemPar17',h.uplatnujemPar17)}
 ${xmlEl('ukoncujemUplatnovaniePar17',h.ukoncujemPar17)}
 ${xmlEl('obmedzenie',h.obmedzenie)}
@@ -436,10 +487,10 @@ ${xmlEl('zapocitanieMinDanePar46b5',h.zapocitanie46b5)}
 </hlavicka>
 <telo>
 ${teloRows}
-${tabA}${tabB}${emptyTab6('tabC1')}${emptyTab6('tabC2')}${tabD}${tabE}${tabF}${tabG('tabG1',3)}${tabG('tabG2',3)}${tabG('tabG3',4)}${tabH}${tabI}${tabJ}${obm}${tabK}${z17}${p51}${vsd}${c7}${xmlEl('osobitneZaznamy',h.osobitneZaznamy)}
+${tabA}${tabB}${emptyTab6('tabC1')}${emptyTab6('tabC2')}${tabD}${tabE}${tabF}${tabG('tabG1',3)}${tabG('tabG2',3)}${tabG('tabG3',4)}${tabH}${tabI}${tabJ}${obm}${tabK}${z17}${p51}${vsd}${c7}<osobitneZaznamy>${h.osobitneZaznamy ? '<![CDATA['+h.osobitneZaznamy+']]>' : ''}</osobitneZaznamy>
 ${op}${xmlEl('pocetPriloh',h.pocetPriloh)}
 ${xmlEl('datumVyhlasenia',h.datumVyhlasenia)}
-${pl}${vr}${pr13}</telo>
+${pl}${vr}${pr13}${pril30c}${pril30ca}${pril30e}${priloha}</telo>
 </dokument>`;
 }
 
@@ -459,9 +510,9 @@ function defaultHeader() {
   return {
     dic:'', ico:'', pravnaForma:'112', skNaceK1:'', skNaceK2:'', skNaceK3:'',
     skNaceCinnost:'', obchodneMeno:'', sidloUlica:'', sidloCislo:'',
-    sidloPsc:'', sidloObec:'', sidloStat:'Slovenská republika',
+    sidloPsc:'', sidloObec:'', sidloStat:'Slovensko',
     sidloTel:'', sidloEmail:'',
-    zdanObdOd:'1.1.2025', zdanObdDo:'31.12.2025',
+    zdanObdOd:'01.01.2025', zdanObdDo:'31.12.2025',
     rdp:1, odp:0, ddp:0,
     uplatnujemPar17:0, ukoncujemPar17:0, obmedzenie:0, prepojenie:0,
     oslobodenie13ab:0, mikrodanovnik:0, polovicna46b3:0,
@@ -470,7 +521,7 @@ function defaultHeader() {
     opPriezvisko:'', opMeno:'', opTitul:'', opTitulZa:'',
     opPostavenie:'konateľ',
     opUlica:'', opCislo:'', opPsc:'', opObec:'',
-    opStat:'Slovenská republika', opTel:'', opEmail:'',
+    opStat:'Slovensko', opTel:'', opEmail:'',
     pocetPriloh:'5', datumVyhlasenia:'',
     c7paragraf50:0, suhlasZasl:0, osobitneZaznamy:'',
   };
