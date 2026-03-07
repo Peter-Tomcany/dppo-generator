@@ -215,13 +215,13 @@ label.btn input[type="file"]{display:none}
           ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
           <div class="icon">📊</div>
           <h2>Pretiahnite Excel súbor sem</h2>
-          <p>Výpočet_ZD_2025.xlsm alebo podobný súbor s hárkom „Pomôcka k DP"</p>
+          <p>Použite súbor založený na šablóne <strong>ProStif_výpočet ZD_2025_vzor.xlsm</strong> (hárok Pomôcka k DP alebo DPPO export)</p>
           <label class="btn btn-primary" style="padding:13px 32px">Vybrať súbor
             <input type="file" accept=".xlsx,.xlsm,.xls" onchange="handleFileInput(event)">
           </label>
         </div>
         <div class="info-box" style="margin-top:16px">
-          Aplikácia načíta údaje z hárkov <strong>Základné údaje</strong>, <strong>Pomôcka k DP</strong> (alebo <strong>vzor</strong>) a <strong>Pomocné výpočty</strong>. Tabuľka F a riadky DP sa berú z hárka <strong>vzor</strong> (B1, B2 + 1:1 kópia Pomôcka k DP), inak z <strong>DPPO export</strong> (B1, B2) a <strong>Pomôcka k DP</strong>.
+          Aplikácia načíta údaje z hárkov <strong>Základné údaje</strong>, <strong>Pomocné výpočty</strong> a buď jeden zdroj <strong>DPPO export</strong> (Tab F + všetky riadky DP), alebo <strong>Pomôcka k DP</strong> + Tab F z ZU.
           Všetky polia sú len na čítanie — dáta sa menia výhradne v Exceli.
         </div>
       </div>
@@ -444,7 +444,7 @@ function parseExcelFile(arrayBuffer) {
     result.header.tabF_naklady = zuNaklady !== null ? zuNaklady : (cv('C20') ?? cv('E20') ?? cv('D20') ?? '');
   }
 
-  // --- Pomôcka k DP (alebo hárok "vzor" od riadku 5) ---
+  // --- Riadky DP: jeden zdroj "DPPO export" (od riadku 5), inak "Pomôcka k DP" ---
   function readDpRowsFromSheet(ws, startRow0) {
     const range = XLSX.utils.decode_range(ws['!ref']||'A1:E200');
     for (let R = startRow0; R <= range.e.r; R++) {
@@ -461,8 +461,8 @@ function parseExcelFile(arrayBuffer) {
       }
     }
   }
-  if (wb.SheetNames.indexOf('vzor') >= 0) {
-    readDpRowsFromSheet(wb.Sheets['vzor'], 4);  // v "vzor" je 1:1 kópia Pomôcka k DP od riadku 5 (index 4)
+  if (wb.SheetNames.indexOf('DPPO export') >= 0) {
+    readDpRowsFromSheet(wb.Sheets['DPPO export'], 4);  // Tab F hore, od riadku 5 je 1:1 Pomôcka k DP
   } else if (wb.SheetNames.indexOf('Pomôcka k DP') >= 0) {
     readDpRowsFromSheet(wb.Sheets['Pomôcka k DP'], 0);
   }
@@ -481,7 +481,7 @@ function parseExcelFile(arrayBuffer) {
 
   var tabFVynosy = result.header.tabF_vynosy;
   var tabFNaklady = result.header.tabF_naklady;
-  var sheetExport = wb.SheetNames.indexOf('vzor') >= 0 ? wb.Sheets['vzor'] : (wb.SheetNames.indexOf('DPPO export') >= 0 ? wb.Sheets['DPPO export'] : (wb.SheetNames.indexOf('Tab F') >= 0 ? wb.Sheets['Tab F'] : null));
+  var sheetExport = wb.SheetNames.indexOf('DPPO export') >= 0 ? wb.Sheets['DPPO export'] : null;
   if (sheetExport) {
     var exportVynosy = parseNumFromCell(sheetExport, 'B1');
     var exportNaklady = parseNumFromCell(sheetExport, 'B2');
