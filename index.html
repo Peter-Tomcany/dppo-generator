@@ -221,7 +221,7 @@ label.btn input[type="file"]{display:none}
           </label>
         </div>
         <div class="info-box" style="margin-top:16px">
-          Aplikácia načíta údaje z hárkov <strong>Základné údaje</strong>, <strong>Pomôcka k DP</strong> a <strong>Pomocné výpočty</strong>. Tabuľka F sa berie z buniek C18 (výnosy) a C20 (náklady) na ZU, alebo z hárka <strong>DPPO export</strong> (B1, B2).
+          Aplikácia načíta údaje z hárkov <strong>Základné údaje</strong>, <strong>Pomôcka k DP</strong> (alebo <strong>vzor</strong>) a <strong>Pomocné výpočty</strong>. Tabuľka F a riadky DP sa berú z hárka <strong>vzor</strong> (B1, B2 + 1:1 kópia Pomôcka k DP), inak z <strong>DPPO export</strong> (B1, B2) a <strong>Pomôcka k DP</strong>.
           Všetky polia sú len na čítanie — dáta sa menia výhradne v Exceli.
         </div>
       </div>
@@ -352,6 +352,20 @@ const TAB_B_LABELS = {
 
 // =====================================================================
 // EXCEL PARSER
+// Vráti číslo z bunky ( .v, prípadne .w ) alebo null – pre Tab F, aby fungovali vzorce a formátované reťazce
+function parseNumFromCell(ws, cellRef) {
+  if (!ws || !cellRef) return null;
+  const cell = ws[cellRef];
+  if (!cell) return null;
+  let val = cell.v;
+  if (val === undefined || val === null || val === '') val = cell.w;
+  if (val === undefined || val === null || val === '') return null;
+  if (typeof val === 'number' && !isNaN(val)) return val;
+  const s = String(val).replace(/\s/g,'').replace(',','.');
+  const n = parseFloat(s);
+  return (n !== undefined && !isNaN(n)) ? n : null;
+}
+
 // =====================================================================
 function parseExcelFile(arrayBuffer) {
   const wb = XLSX.read(arrayBuffer, {type:'array'});
@@ -423,15 +437,17 @@ function parseExcelFile(arrayBuffer) {
 
     const zdanPrijmy = cv('C19');
     if (zdanPrijmy && typeof zdanPrijmy === 'number') result.rows[560] = zdanPrijmy;
-    result.header.tabF_vynosy = cv('C18') ?? cv('E18') ?? cv('D18') ?? '';
-    result.header.tabF_naklady = cv('C20') ?? cv('E20') ?? cv('D20') ?? '';
+    // Tab F z ZU: berieme len čísla (C18/C20 môžu byť checkbox/ulica), skúsime viac buniek + .w a string
+    var zuVynosy = parseNumFromCell(ws, 'C18') ?? parseNumFromCell(ws, 'E18') ?? parseNumFromCell(ws, 'D18') ?? parseNumFromCell(ws, 'C17') ?? parseNumFromCell(ws, 'C19');
+    var zuNaklady = parseNumFromCell(ws, 'C20') ?? parseNumFromCell(ws, 'E20') ?? parseNumFromCell(ws, 'D20') ?? parseNumFromCell(ws, 'C19') ?? parseNumFromCell(ws, 'C21');
+    result.header.tabF_vynosy = zuVynosy !== null ? zuVynosy : (cv('C18') ?? cv('E18') ?? cv('D18') ?? '');
+    result.header.tabF_naklady = zuNaklady !== null ? zuNaklady : (cv('C20') ?? cv('E20') ?? cv('D20') ?? '');
   }
 
-  // --- Pomôcka k DP ---
-  if (wb.SheetNames.indexOf('Pomôcka k DP') >= 0) {
-    const ws = wb.Sheets['Pomôcka k DP'];
-    const range = XLSX.utils.decode_range(ws['!ref']||'A1:E100');
-    for (let R = range.s.r; R <= range.e.r; R++) {
+  // --- Pomôcka k DP (alebo hárok "vzor" od riadku 5) ---
+  function readDpRowsFromSheet(ws, startRow0) {
+    const range = XLSX.utils.decode_range(ws['!ref']||'A1:E200');
+    for (let R = startRow0; R <= range.e.r; R++) {
       const cC = ws[XLSX.utils.encode_cell({r:R,c:2})];
       const cD = ws[XLSX.utils.encode_cell({r:R,c:3})];
       const cE = ws[XLSX.utils.encode_cell({r:R,c:4})];
@@ -444,6 +460,11 @@ function parseExcelFile(arrayBuffer) {
         result.tabARows[cD.v] = valE;
       }
     }
+  }
+  if (wb.SheetNames.indexOf('vzor') >= 0) {
+    readDpRowsFromSheet(wb.Sheets['vzor'], 4);  // v "vzor" je 1:1 kópia Pomôcka k DP od riadku 5 (index 4)
+  } else if (wb.SheetNames.indexOf('Pomôcka k DP') >= 0) {
+    readDpRowsFromSheet(wb.Sheets['Pomôcka k DP'], 0);
   }
 
   // --- Pomocné výpočty → Tabuľka B ---
@@ -460,14 +481,23 @@ function parseExcelFile(arrayBuffer) {
 
   var tabFVynosy = result.header.tabF_vynosy;
   var tabFNaklady = result.header.tabF_naklady;
-  var sheetExport = wb.SheetNames.indexOf('DPPO export') >= 0 ? wb.Sheets['DPPO export'] : (wb.SheetNames.indexOf('Tab F') >= 0 ? wb.Sheets['Tab F'] : null);
+  var sheetExport = wb.SheetNames.indexOf('vzor') >= 0 ? wb.Sheets['vzor'] : (wb.SheetNames.indexOf('DPPO export') >= 0 ? wb.Sheets['DPPO export'] : (wb.SheetNames.indexOf('Tab F') >= 0 ? wb.Sheets['Tab F'] : null));
   if (sheetExport) {
-    var v = (c) => sheetExport[c] ? sheetExport[c].v : '';
-    if (v('B1') !== undefined && v('B1') !== '' && v('B1') !== null) tabFVynosy = v('B1');
-    if (v('B2') !== undefined && v('B2') !== '' && v('B2') !== null) tabFNaklady = v('B2');
+    var exportVynosy = parseNumFromCell(sheetExport, 'B1');
+    var exportNaklady = parseNumFromCell(sheetExport, 'B2');
+    if (exportVynosy !== null) tabFVynosy = exportVynosy;
+    if (exportNaklady !== null) tabFNaklady = exportNaklady;
   }
-  if (tabFVynosy !== undefined && tabFVynosy !== '' && tabFVynosy !== null) result.rows[560] = tabFVynosy;
-  if (tabFNaklady !== undefined && tabFNaklady !== '' && tabFNaklady !== null) result.rows[561] = tabFNaklady;
+  // do XML idú len čísla
+  function toNum(x) {
+    if (x === undefined || x === null || x === '') return null;
+    if (typeof x === 'number' && !isNaN(x)) return x;
+    var n = parseFloat(String(x).replace(/\s/g,'').replace(',','.'));
+    return (n !== undefined && !isNaN(n)) ? n : null;
+  }
+  var numV = toNum(tabFVynosy), numN = toNum(tabFNaklady);
+  if (numV !== null) result.rows[560] = numV;
+  if (numN !== null) result.rows[561] = numN;
 
   return result;
 }
