@@ -421,11 +421,11 @@ function parseExcelFile(arrayBuffer) {
     result.header.osobitneZaznamy = cv('C26') || '';
 
     // Oprávnená osoba
-    result.header.priezvisko = cv('C28') || '';
-    result.header.meno = cv('C29') || '';
-    result.header.titul = cv('C30') || '';
-    result.header.titulZa = cv('C31') || '';
-    result.header.postavenie = cv('C32') || '';
+    result.header.priezvisko = cv('C30') || '';
+    result.header.meno = cv('C31') || '';
+    result.header.titul = cv('C32') || '';
+    result.header.titulZa = cv('C33') || '';
+    result.header.postavenie = cv('C34') || '';
 
     // Telefón a email
     result.header.sidloTel = cv('C33') || '';
@@ -444,25 +444,30 @@ function parseExcelFile(arrayBuffer) {
     result.header.tabF_naklady = zuNaklady !== null ? zuNaklady : (cv('C20') ?? cv('E20') ?? cv('D20') ?? '');
   }
 
-  // --- Riadky DP: vždy z "Pomôcka k DP" (skutočné hodnoty). Na DPPO export sú vzorce, ktoré prehliadač nevyhodnotí.
+  // --- Riadky DP: vždy z "Pomôcka k DP" (skutočné hodnoty).
+  function toRowNum(cell) {
+    if (!cell || (cell.v === undefined && cell.w === undefined)) return null;
+    var x = cell.v !== undefined && cell.v !== null && cell.v !== '' ? cell.v : cell.w;
+    if (typeof x === 'number' && !isNaN(x)) return x;
+    var n = parseInt(String(x).trim(), 10); return isNaN(n) ? null : n;
+  }
   function readDpRowsFromSheet(ws, startRow0) {
     const range = XLSX.utils.decode_range(ws['!ref']||'A1:E200');
-    for (let R = startRow0; R <= range.e.r; R++) {
+    for (let R = startRow0; R <= Math.max(range.e.r, 150); R++) {
+      const cB = ws[XLSX.utils.encode_cell({r:R,c:1})];
       const cC = ws[XLSX.utils.encode_cell({r:R,c:2})];
       const cD = ws[XLSX.utils.encode_cell({r:R,c:3})];
       const cE = ws[XLSX.utils.encode_cell({r:R,c:4})];
-      const valE = cE ? cE.v : null;
-      if (cC && typeof cC.v === 'number') {
-        const rn = cC.v;
-        if (ROW_MAP.some(x => x[0]===rn) || rn===610) result.rows[rn] = valE;
-      }
-      if (cD && typeof cD.v === 'string' && cD.v.startsWith('130/A')) {
-        result.tabARows[cD.v] = valE;
-      }
+      const rawVal = (cell) => { if (!cell) return null; if (cell.v !== undefined && cell.v !== null && cell.v !== '') return cell.v; if (cell.w !== undefined && cell.w !== '') return cell.w; return null; };
+      const valE = rawVal(cE) ?? rawVal(cD);
+      const rn = toRowNum(cC) ?? toRowNum(cB);
+      if (rn !== null && (ROW_MAP.some(x => x[0]===rn) || rn===610)) result.rows[rn] = valE;
+      if (cD && typeof cD.v === 'string' && cD.v.startsWith('130/A')) result.tabARows[cD.v] = valE;
     }
   }
-  if (wb.SheetNames.indexOf('Pomôcka k DP') >= 0) {
-    readDpRowsFromSheet(wb.Sheets['Pomôcka k DP'], 0);
+  var sheetPomocka = (wb.SheetNames.indexOf('Pomôcka k DP') >= 0 ? 'Pomôcka k DP' : null) || wb.SheetNames.find(function(n){ var t = n.replace(/\s+/g,' ').trim().toLowerCase().replace(/ô/g,'o'); return t.indexOf('pomocka') >= 0 && t.indexOf('dp') >= 0; });
+  if (sheetPomocka) {
+    readDpRowsFromSheet(wb.Sheets[sheetPomocka], 0);
   }
 
   // --- Pomocné výpočty → Tabuľka B ---
