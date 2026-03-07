@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DPPO 2025 – Generátor XML | Helwitax</title>
+<title>DPPO – Generátor XML | Helwitax</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@300;400;500;700;800&display=swap" rel="stylesheet">
 <style>
@@ -129,6 +129,15 @@ label.btn input[type="file"]{display:none}
 /* ── INFO BOX ── */
 .info-box{padding:13px 16px;background:rgba(175,250,150,.15);border:1.5px solid rgba(175,250,150,.5);border-radius:8px;font-size:12px;color:var(--purple);line-height:1.6;margin-bottom:16px;font-weight:500}
 
+/* ── VALIDATION ── */
+.validation-box{margin-top:20px;padding:14px 18px;border-radius:8px;font-size:12px;line-height:1.6}
+.validation-box ul{margin:6px 0 0 18px;padding:0}
+.validation-box li{margin:4px 0}
+.validation-errors{background:#fef2f2;border:1.5px solid #fecaca;color:#b91c1c}
+.validation-warnings{background:#fffbeb;border:1.5px solid #fde68a;color:#b45309}
+.validation-ok{background:rgba(175,250,150,.2);border:1.5px solid rgba(175,250,150,.5);color:var(--purple);font-weight:500}
+.btn:disabled{opacity:0.6;cursor:not-allowed;transform:none}
+
 /* ── XML OUTPUT ── */
 .xml-output{
   background:var(--purple);border-radius:10px;padding:18px;
@@ -158,10 +167,10 @@ label.btn input[type="file"]{display:none}
   <div class="logo-wrap">
     <div class="logo-text">helwitax</div>
     <div class="logo-divider"></div>
-    <div class="logo-label">DPPO Generator</div>
+    <div class="logo-label">DPPO 2025</div>
   </div>
   <div class="header-actions">
-    <span class="badge">2025</span>
+    <span class="badge" id="headerYearBadge">2025</span>
   </div>
 </header>
 
@@ -251,7 +260,7 @@ label.btn input[type="file"]{display:none}
     <div id="vyhlasenieContent"></div>
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="goStep('osoba')">Späť</button>
-      <button class="btn btn-green" onclick="doGenerate()">Generovať XML</button>
+      <button class="btn btn-green" id="btnGenerateXml" onclick="doGenerate()">Generovať XML</button>
     </div>
   </div>
 
@@ -269,6 +278,7 @@ label.btn input[type="file"]{display:none}
 // =====================================================================
 // CONSTANTS
 // =====================================================================
+const DPPO_ROK = 2025; // rok daňového priznania (jeden zdroj pre titulok, názov súboru)
 const ROW_MAP = [
   [100,"r100"],[110,"r110"],[130,"r130"],[140,"r140"],[150,"r150"],
   [170,"r170"],[180,"r180"],[200,"r200"],[210,"r210"],[220,"r220"],
@@ -413,6 +423,8 @@ function parseExcelFile(arrayBuffer) {
 
     const zdanPrijmy = cv('C19');
     if (zdanPrijmy && typeof zdanPrijmy === 'number') result.rows[560] = zdanPrijmy;
+    result.header.tabF_vynosy = cv('E18');
+    result.header.tabF_naklady = cv('E20');
   }
 
   // --- Pomôcka k DP ---
@@ -445,6 +457,9 @@ function parseExcelFile(arrayBuffer) {
       }
     }
   }
+
+  if (result.header.tabF_vynosy !== undefined && result.header.tabF_vynosy !== '' && result.header.tabF_vynosy !== null) result.rows[560] = result.header.tabF_vynosy;
+  if (result.header.tabF_naklady !== undefined && result.header.tabF_naklady !== '' && result.header.tabF_naklady !== null) result.rows[561] = result.header.tabF_naklady;
 
   return result;
 }
@@ -706,7 +721,7 @@ function generateXml(header, rows, tabARows, tabBRows) {
   const vy = (currentData && currentData.vyhlasenie) ? currentData.vyhlasenie : { neuplatnujemPar50: true, c7ico: '', c7obchodneMeno: '' };
   const c7r1Base = parseFloat(String(rv(1080)).replace(',','.')) || parseFloat(String(rv(1050)).replace(',','.')) || 0;
   const c7r4Val = vy.neuplatnujemPar50 ? '' : (c7r1Base ? (Math.round(c7r1Base * 0.01 * 100) / 100).toFixed(2) : '');
-  const c7prijimatelSuma = (!vy.neuplatnujemPar50 && vy.c7ico && c7r4Val) ? c7r4Val : '';
+  const c7prijimatelSuma = (!vy.neuplatnujemPar50 && c7r4Val) ? c7r4Val : '';
   xml += '\t\t<c7paragraf50>'+ (vy.neuplatnujemPar50 ? '1' : '0') +'</c7paragraf50>\n';
   xml += '\t\t<suhlasZasl>0</suhlasZasl>\n';
   xml += '\t\t<c7r1>'+ (vy.neuplatnujemPar50 ? '' : esc(fmtDec(c7r1Base || rv(1080) || rv(1050)))) +'</c7r1>\n';
@@ -1014,14 +1029,21 @@ function renderVyhlasenieTab() {
   html += '<div class="field"><label>IČO prijímateľa</label><input type="text" data-vy="c7ico" value="'+esc(vy.c7ico||'')+'" placeholder="IČO"></div>';
   html += '<div class="field"><label>Obchodné meno / názov organizácie</label><input type="text" data-vy="c7obchodneMeno" value="'+esc(vy.c7obchodneMeno||'')+'" placeholder="Názov"></div>';
   html += '</div></div>';
+  html += '<div id="vyhlasenieValidation" class="validation-box"></div>';
   html += '</div></div>';
   document.getElementById('vyhlasenieContent').innerHTML = html;
   const cb = document.getElementById('vyhNeuplatnujem');
   const block = document.getElementById('vyhlasenieFields');
-  if (cb) cb.addEventListener('change', function() { currentData.vyhlasenie.neuplatnujemPar50 = this.checked; block.style.display = this.checked ? 'none' : 'block'; });
+  function onVyhlasenieChange() {
+    if (currentData.vyhlasenie && cb) currentData.vyhlasenie.neuplatnujemPar50 = cb.checked;
+    if (block && cb) block.style.display = cb.checked ? 'none' : 'block';
+    updateVyhlasenieValidation();
+  }
+  if (cb) cb.addEventListener('change', onVyhlasenieChange);
   document.getElementById('vyhlasenieContent').querySelectorAll('input[data-vy]').forEach(function(inp) {
-    inp.addEventListener('input', function() { if (currentData.vyhlasenie && this.dataset.vy) currentData.vyhlasenie[this.dataset.vy] = this.value; });
+    inp.addEventListener('input', function() { if (currentData.vyhlasenie && this.dataset.vy) currentData.vyhlasenie[this.dataset.vy] = this.value; updateVyhlasenieValidation(); });
   });
+  updateVyhlasenieValidation();
 }
 
 function renderXmlTab() {
@@ -1038,9 +1060,53 @@ function renderXmlTab() {
   document.getElementById('xmlContent').innerHTML = html;
 }
 
+function validateBeforeGenerate() {
+  const errors = [];
+  const warnings = [];
+  if (!currentData) return { errors: ['Najprv nahrajte Excel súbor.'], warnings: [] };
+  const h = currentData.header || {};
+  if (!String(h.dic || '').trim()) errors.push('DIČ je povinné.');
+  if (!String(h.ico || '').trim()) errors.push('IČO je povinné.');
+  const od = fmtDate(h.zdanObdOd);
+  const doVal = fmtDate(h.zdanObdDo);
+  if (!od || !/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(String(od).trim())) errors.push('Zdaňovacie obdobie „Od“ musí byť platný dátum (dd.mm.yyyy).');
+  if (!doVal || !/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(String(doVal).trim())) errors.push('Zdaňovacie obdobie „Do“ musí byť platný dátum (dd.mm.yyyy).');
+  const vy = currentData.vyhlasenie || { neuplatnujemPar50: true };
+  if (!vy.neuplatnujemPar50) {
+    if (!String(vy.c7ico || '').trim()) errors.push('Pri VII. §50 (vyhlásenie) je povinné vyplniť IČO prijímateľa.');
+    if (!String(vy.c7obchodneMeno || '').trim()) warnings.push('Odporúčame vyplniť obchodné meno / názov prijímateľa.');
+  }
+  if (!String(h.obchodneMeno || '').trim()) warnings.push('Obchodné meno je prázdne.');
+  if (!String(h.priezvisko || '').trim() || !String(h.meno || '').trim()) warnings.push('Oprávnená osoba: skontrolujte priezvisko a meno.');
+  return { errors, warnings };
+}
+
+function updateVyhlasenieValidation() {
+  const res = validateBeforeGenerate();
+  const box = document.getElementById('vyhlasenieValidation');
+  const btn = document.getElementById('btnGenerateXml');
+  if (!box) return;
+  if (res.errors.length) {
+    box.className = 'validation-box validation-errors';
+    box.innerHTML = '<strong>Chyby (opravte pred generovaním):</strong><ul>' + res.errors.map(function(e){ return '<li>'+e+'</li>'; }).join('') + '</ul>';
+  } else if (res.warnings.length) {
+    box.className = 'validation-box validation-warnings';
+    box.innerHTML = '<strong>Varovania:</strong><ul>' + res.warnings.map(function(w){ return '<li>'+w+'</li>'; }).join('') + '</ul>';
+  } else {
+    box.className = 'validation-box validation-ok';
+    box.innerHTML = 'Údaje sú v poriadku. Môžete generovať XML.';
+  }
+  if (btn) btn.disabled = res.errors.length > 0;
+}
+
 function doGenerate() {
   if (!currentData) {
     alert('Najprv nahrajte súbor!');
+    return;
+  }
+  const val = validateBeforeGenerate();
+  if (val.errors.length > 0) {
+    alert('Opravte chyby pred generovaním:\n\n' + val.errors.join('\n'));
     return;
   }
   generatedXml = generateXml(currentData.header, currentData.rows, currentData.tabARows, currentData.tabBRows);
@@ -1052,14 +1118,14 @@ function doDownload() {
     alert('Najprv vygenerujte XML!');
     return;
   }
-  let fileName = 'DPPO_2025';
+  let fileName = 'DPPO_' + DPPO_ROK;
   if (currentData && currentData.header) {
     let nazov = String(currentData.header.obchodneMeno || '').replace(/[\s\/\\:*?"<>|]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') || 'DPPO';
     nazov = nazov.replace(/_\d+$/, ''); // iba Názov Firmy, bez _46022 alebo iného čísla za názvom
     const datumDo = currentData.header.zdanObdDo || currentData.header.zdanObdOd || '';
     let rok = datumDo ? (datumDo.split('.').pop() || '').trim() : '';
     if (!/^\d{4}$/.test(rok)) rok = ''; // iba 4-ciferný rok (nie Excel serial 46022)
-    fileName = (nazov ? nazov + '_' : '') + 'DPPO_' + (rok || new Date().getFullYear());
+    fileName = (nazov ? nazov + '_' : '') + 'DPPO_' + (rok || DPPO_ROK);
   }
   const blob = new Blob([generatedXml], {type:'text/xml'});
   const url = URL.createObjectURL(blob);
@@ -1079,6 +1145,11 @@ document.querySelectorAll('.step').forEach(s => {
     if (target === 'upload' || currentData) goStep(target);
   });
 });
+
+// Lokalizácia: titulok a badge podľa DPPO_ROK
+document.title = 'DPPO ' + DPPO_ROK + ' – Generátor XML | Helwitax';
+var badgeEl = document.getElementById('headerYearBadge');
+if (badgeEl) badgeEl.textContent = DPPO_ROK;
 </script>
 </body>
 </html>
