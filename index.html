@@ -170,6 +170,7 @@ label.btn input[type="file"]{display:none}
     <div class="logo-label">DPPO 2025</div>
   </div>
   <div class="header-actions">
+    <a href="docs/Navod_pre_ucetnikov.docx" target="_blank" rel="noopener" class="badge" style="text-decoration:none;color:var(--purple);margin-right:8px" title="Návod pre účtovníkov">Návod (DOCX)</a>
     <span class="badge" id="headerYearBadge">2025</span>
   </div>
 </header>
@@ -219,8 +220,10 @@ label.btn input[type="file"]{display:none}
           <label class="btn btn-primary" style="padding:13px 32px">Vybrať súbor
             <input type="file" accept=".xlsx,.xlsm,.xls" onchange="handleFileInput(event)">
           </label>
+          <div id="uploadedFileName" class="uploaded-file-name" style="display:none;margin-top:14px;font-size:13px;color:var(--muted);font-weight:600"></div>
         </div>
         <div class="info-box" style="margin-top:16px">
+          <a href="docs/Navod_pre_ucetnikov.docx" target="_blank" rel="noopener" style="color:var(--purple);font-weight:700">Návod pre účtovníkov (DOCX)</a> — odporúčame prečítať pred prvým použitím.<br><br>
           Ak je v súbore hárok <strong>DPPO export</strong>, generátor z neho berie všetko (Tab F, prehľad ZU, oprávnená osoba, Tab B, riadky DP). Ak hárok chýba, načíta sa zo <strong>Základné údaje</strong>, <strong>Pomôcka k DP</strong> a <strong>Pomocné výpočty</strong>; Tab F môže byť prázdna, ak na ZU nie sú v bunkách C18/C20 čísla.
           Všetky polia sú len na čítanie — dáta sa menia výhradne v Exceli.
         </div>
@@ -232,6 +235,7 @@ label.btn input[type="file"]{display:none}
   <div class="page" id="page-data">
     <div id="dataContent"></div>
     <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep('upload')">Nahrať iný súbor</button>
       <button class="btn btn-secondary" onclick="goStep('upload')">Späť</button>
       <button class="btn btn-primary" onclick="goStep('header')">Pokračovať</button>
     </div>
@@ -241,6 +245,7 @@ label.btn input[type="file"]{display:none}
   <div class="page" id="page-header">
     <div id="headerContent"></div>
     <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep('upload')">Nahrať iný súbor</button>
       <button class="btn btn-secondary" onclick="goStep('data')">Späť</button>
       <button class="btn btn-primary" onclick="goStep('osoba')">Pokračovať</button>
     </div>
@@ -250,6 +255,7 @@ label.btn input[type="file"]{display:none}
   <div class="page" id="page-osoba">
     <div id="osobaContent"></div>
     <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep('upload')">Nahrať iný súbor</button>
       <button class="btn btn-secondary" onclick="goStep('header')">Späť</button>
       <button class="btn btn-primary" onclick="goStep('vyhlasenie')">Pokračovať</button>
     </div>
@@ -259,6 +265,7 @@ label.btn input[type="file"]{display:none}
   <div class="page" id="page-vyhlasenie">
     <div id="vyhlasenieContent"></div>
     <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep('upload')">Nahrať iný súbor</button>
       <button class="btn btn-secondary" onclick="goStep('osoba')">Späť</button>
       <button class="btn btn-green" id="btnGenerateXml" onclick="doGenerate()">Generovať XML</button>
     </div>
@@ -786,7 +793,9 @@ function generateXml(header, rows, tabARows, tabBRows) {
   const c7r1Base = parseFloat(String(rv(1080)).replace(',','.')) || parseFloat(String(rv(1050)).replace(',','.')) || 0;
   const c7r4Val = vy.neuplatnujemPar50 ? '' : (c7r1Base ? (Math.round(c7r1Base * 0.01 * 100) / 100).toFixed(2) : '');
   const c7prijimatelSuma = (!vy.neuplatnujemPar50 && c7r4Val) ? c7r4Val : '';
+  // VII. časť §50: 1 = neuplatňujem postup podľa § 50 zákona, 0 = uplatňujem
   xml += '\t\t<c7paragraf50>'+ (vy.neuplatnujemPar50 ? '1' : '0') +'</c7paragraf50>\n';
+  if (vy.neuplatnujemPar50) xml += '\t\t<!-- X neuplatňujem postup podľa § 50 zákona -->\n';
   xml += '\t\t<suhlasZasl>0</suhlasZasl>\n';
   xml += '\t\t<c7r1>'+ (vy.neuplatnujemPar50 ? '' : esc(fmtDec(c7r1Base || rv(1080) || rv(1050)))) +'</c7r1>\n';
   xml += '\t\t<c7r2></c7r2>\n\t\t<c7r3></c7r3>\n';
@@ -866,6 +875,7 @@ function goStep(name) {
   });
 
   // Render content
+  if (name === 'upload') updateUploadedFileName();
   if (name === 'data' && currentData) renderDataTab();
   if (name === 'header' && currentData) renderHeaderTab();
   if (name === 'osoba' && currentData) renderOsobaTab();
@@ -898,13 +908,27 @@ function processFile(file) {
   reader.onload = (ev) => {
     try {
       const parsed = parseExcelFile(ev.target.result);
+      parsed.fileName = file.name;
       currentData = parsed;
+      updateUploadedFileName();
       goStep('data');
     } catch(err) {
       alert('Chyba pri načítaní súboru: '+err.message);
     }
   };
   reader.readAsArrayBuffer(file);
+}
+
+function updateUploadedFileName() {
+  const el = document.getElementById('uploadedFileName');
+  if (!el) return;
+  if (currentData && currentData.fileName) {
+    el.textContent = 'Nahratý súbor: ' + currentData.fileName;
+    el.style.display = 'block';
+  } else {
+    el.textContent = '';
+    el.style.display = 'none';
+  }
 }
 
 function renderDataTab() {
@@ -1073,11 +1097,20 @@ function renderOsobaTab() {
 function renderVyhlasenieTab() {
   if (!currentData.vyhlasenie) currentData.vyhlasenie = { neuplatnujemPar50: true, c7ico: '', c7obchodneMeno: '' };
   const vy = currentData.vyhlasenie;
+  const h = currentData.header || {};
+  const od = fmtDate(h.zdanObdOd);
+  const doVal = fmtDate(h.zdanObdDo);
   const rows = currentData.rows || {};
   const r1080 = rows[1080] !== undefined && rows[1080] !== '' ? parseFloat(String(rows[1080]).replace(',','.')) : (rows[1050] !== undefined && rows[1050] !== '' ? parseFloat(String(rows[1050]).replace(',','.')) : 0);
   const r1Text = isNaN(r1080) || r1080 === 0 ? '' : (Math.round(r1080 * 100) / 100).toFixed(2);
   const r4Text = r1080 && !isNaN(r1080) ? (Math.round(r1080 * 0.01 * 100) / 100).toFixed(2) : '';
   let html = '';
+  html += '<div class="section" style="margin-bottom:20px"><div class="section-header"><span class="section-tag">Súhrn</span><span class="section-title">Údaje pre generovanie XML</span></div>';
+  html += '<div class="section-body"><div class="grid grid-3">';
+  html += '<div class="field"><label>IČO</label><input type="text" value="'+esc(h.ico||'')+'" readonly></div>';
+  html += '<div class="field"><label>Obchodné meno</label><input type="text" value="'+esc((h.obchodneMeno||'').substring(0,40))+((h.obchodneMeno||'').length>40?'…':'')+'" readonly title="'+esc(h.obchodneMeno||'')+'"></div>';
+  html += '<div class="field"><label>Zdaňovacie obdobie</label><input type="text" value="'+esc(od||'')+' – '+esc(doVal||'')+'" readonly></div>';
+  html += '</div></div></div>';
   html += '<div class="section"><div class="section-header"><span class="section-tag">VII</span><span class="section-title">Vyhlásenie o poukázaní podielu zaplatenej dane (§ 50)</span></div>';
   html += '<div class="section-body">';
   html += '<div class="check-item" style="margin-bottom:16px"><label class="field" style="flex-direction:row;align-items:center;gap:10px;cursor:pointer">';
@@ -1115,7 +1148,7 @@ function renderXmlTab() {
   if (generatedXml) {
     html += '<div class="section"><div class="section-header"><span class="section-tag">XML</span><span class="section-title">Vygenerovaný XML súbor</span></div>';
     html += '<div class="section-body">';
-    html += '<div class="info-box">XML bolo úspešne vygenerované. Kliknite <strong>Stiahnuť XML súbor</strong> a importujte ho na portáli FS.</div>';
+    html += '<div class="info-box">XML bolo úspešne vygenerované. Pred stiahnutím sa vykoná kontrola štruktúry (dokument, hlavička, telo). Kliknite <strong>Stiahnuť XML súbor</strong> a importujte ho na portáli FS SR.</div>';
     html += '<div class="xml-output">'+esc(generatedXml)+'</div>';
     html += '</div></div>';
   } else {
@@ -1124,13 +1157,29 @@ function renderXmlTab() {
   document.getElementById('xmlContent').innerHTML = html;
 }
 
+function validateIco(ico) {
+  const s = String(ico || '').replace(/\s/g, '');
+  if (s.length !== 8) return { ok: false, msg: 'IČO musí mať 8 číslic.' };
+  if (!/^\d{8}$/.test(s)) return { ok: false, msg: 'IČO môže obsahovať len číslice.' };
+  return { ok: true };
+}
+function validateDic(dic) {
+  let s = String(dic || '').replace(/\s/g, '');
+  if (s.toUpperCase().startsWith('SK')) s = s.slice(2).trim();
+  if (s.length !== 10) return { ok: false, msg: 'DIČ musí mať 10 číslic (s predponou SK alebo bez).' };
+  if (!/^\d{10}$/.test(s)) return { ok: false, msg: 'DIČ môže obsahovať len číslice (a voliteľne predponu SK).' };
+  return { ok: true };
+}
+
 function validateBeforeGenerate() {
   const errors = [];
   const warnings = [];
   if (!currentData) return { errors: ['Najprv nahrajte Excel súbor.'], warnings: [] };
   const h = currentData.header || {};
   if (!String(h.dic || '').trim()) errors.push('DIČ je povinné.');
+  else { const r = validateDic(h.dic); if (!r.ok) errors.push(r.msg); }
   if (!String(h.ico || '').trim()) errors.push('IČO je povinné.');
+  else { const r = validateIco(h.ico); if (!r.ok) errors.push(r.msg); }
   const od = fmtDate(h.zdanObdOd);
   const doVal = fmtDate(h.zdanObdDo);
   if (!od || !/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(String(od).trim())) errors.push('Zdaňovacie obdobie „Od“ musí byť platný dátum (dd.mm.yyyy).');
@@ -1138,6 +1187,7 @@ function validateBeforeGenerate() {
   const vy = currentData.vyhlasenie || { neuplatnujemPar50: true };
   if (!vy.neuplatnujemPar50) {
     if (!String(vy.c7ico || '').trim()) errors.push('Pri VII. §50 (vyhlásenie) je povinné vyplniť IČO prijímateľa.');
+    else { const r = validateIco(vy.c7ico); if (!r.ok) errors.push('IČO prijímateľa: ' + r.msg); }
     if (!String(vy.c7obchodneMeno || '').trim()) warnings.push('Odporúčame vyplniť obchodné meno / názov prijímateľa.');
   }
   if (!String(h.obchodneMeno || '').trim()) warnings.push('Obchodné meno je prázdne.');
@@ -1177,9 +1227,44 @@ function doGenerate() {
   goStep('xml');
 }
 
+function validateXmlWellFormedAndStructure(xmlStr) {
+  const errs = [];
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlStr, 'text/xml');
+    const parseErr = doc.querySelector('parsererror');
+    if (parseErr) {
+      errs.push('XML nie je dobre formované: ' + (parseErr.textContent || 'neznáma chyba').trim());
+      return { ok: false, errors: errs };
+    }
+    const root = doc.documentElement;
+    if (!root || root.nodeName !== 'dokument') {
+      errs.push('Koreňový element musí byť <dokument>.');
+      return { ok: false, errors: errs };
+    }
+    const hlavicka = root.querySelector('hlavicka');
+    const telo = root.querySelector('telo');
+    if (!hlavicka) errs.push('Chýba element <hlavicka>.');
+    if (!telo) errs.push('Chýba element <telo>.');
+    if (hlavicka) {
+      if (!hlavicka.querySelector('dic')) errs.push('V <hlavicka> chýba <dic>.');
+      if (!hlavicka.querySelector('ico')) errs.push('V <hlavicka> chýba <ico>.');
+    }
+    return { ok: errs.length === 0, errors: errs };
+  } catch (e) {
+    errs.push('Chyba pri parsovaní XML: ' + e.message);
+    return { ok: false, errors: errs };
+  }
+}
+
 function doDownload() {
   if (!generatedXml) {
     alert('Najprv vygenerujte XML!');
+    return;
+  }
+  const val = validateXmlWellFormedAndStructure(generatedXml);
+  if (!val.ok) {
+    alert('Validácia XML zlyhala:\n\n' + val.errors.join('\n') + '\n\nOpravte dáta v Exceli a znova vygenerujte XML.');
     return;
   }
   let fileName = 'DPPO_' + DPPO_ROK;
@@ -1191,7 +1276,7 @@ function doDownload() {
     if (!/^\d{4}$/.test(rok)) rok = ''; // iba 4-ciferný rok (nie Excel serial 46022)
     fileName = (nazov ? nazov + '_' : '') + 'DPPO_' + (rok || DPPO_ROK);
   }
-  const blob = new Blob([generatedXml], {type:'text/xml'});
+  const blob = new Blob(['\uFEFF' + generatedXml], {type:'text/xml;charset=utf-8'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
