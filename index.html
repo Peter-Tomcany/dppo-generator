@@ -537,12 +537,13 @@ function generateXml(header, rows, tabARows, tabBRows) {
   xml += '\t\t<zapocitanieMinDanePar46b5>'+String(h.zapocitanie46b5 ? '1' : '0')+'</zapocitanieMinDanePar46b5>\n';
 
   const spStr = (v) => { const s = String(v || '').trim(); if (!s) return ''; const n = parseFloat(s.replace(',','.')); if (!isNaN(n) && s.length < 20) return ''; return s; };
+  const pocetSpVal = (() => { const s = String(h.spPocet || '').trim(); const n = parseInt(s, 10); if (!isNaN(n) && n >= 0 && String(n) === s) return s; return '0'; })();
   xml += '\t\t<stalaPrevadzkaren>\n';
   xml += '\t\t\t<ulica>'+esc(spStr(h.spUlica))+'</ulica>\n';
   xml += '\t\t\t<cislo>'+esc(spStr(h.spCislo))+'</cislo>\n';
   xml += '\t\t\t<psc>'+esc(String(spStr(h.spPsc)).replace(/\s/g,''))+'</psc>\n';
   xml += '\t\t\t<obec>'+esc(spStr(h.spObec))+'</obec>\n';
-  xml += '\t\t\t<pocetSp>'+esc(spStr(h.spPocet))+'</pocetSp>\n';
+  xml += '\t\t\t<pocetSp>'+esc(pocetSpVal)+'</pocetSp>\n';
   xml += '\t\t</stalaPrevadzkaren>\n';
 
   xml += '\t</hlavicka>\n';
@@ -628,8 +629,14 @@ function generateXml(header, rows, tabARows, tabBRows) {
   for (let i=1;i<=10;i++) xml += '\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
   xml += '\t\t</tabE>\n';
 
+  const r100Filled = (() => { const v = rv(100); return v !== '' && v !== null && v !== undefined && Number(v) !== 0; })();
+  const tabF_r01 = fmtDec(rv(560));
+  const tabF_r02 = fmtDec(rv(561));
+  const tabF_r03 = r100Filled ? '' : (tabF_r01 && tabF_r02 ? fmtDec(parseFloat(String(rv(560)).replace(',','.')) - parseFloat(String(rv(561)).replace(',','.'))) : fmtDec(rv(562)));
   xml += '\t\t<tabF>\n';
-  for (let i=1;i<=3;i++) xml += '\t\t\t<r'+pad2(i)+'>'+esc(fmtDec(rv(560 + i - 1)))+'</r'+pad2(i)+'>\n';
+  xml += '\t\t\t<r01>'+esc(r100Filled ? '' : tabF_r01)+'</r01>\n';
+  xml += '\t\t\t<r02>'+esc(r100Filled ? '' : tabF_r02)+'</r02>\n';
+  xml += '\t\t\t<r03>'+esc(tabF_r03)+'</r03>\n';
   xml += '\t\t</tabF>\n';
 
   xml += '\t\t<tabG1>\n';
@@ -690,7 +697,8 @@ function generateXml(header, rows, tabARows, tabBRows) {
   xml += '\t\t<c7r2></c7r2>\n\t\t<c7r3></c7r3>\n\t\t<c7r4></c7r4>\n';
   xml += '\t\t<c7r5>1</c7r5>\n';
 
-  xml += '\t\t<c7prijimatel1>\n\t\t\t<suma></suma>\n\t\t\t<ico></ico>\n\t\t\t<obchodneMeno>\n\t\t\t\t<riadok></riadok>\n\t\t\t\t<riadok></riadok>\n\t\t\t</obchodneMeno>\n\t\t</c7prijimatel1>\n';
+  const c7suma = fmtDec(rv(1050)) || '0.00';
+  xml += '\t\t<c7prijimatel1>\n\t\t\t<suma>'+esc(c7suma)+'</suma>\n\t\t\t<ico></ico>\n\t\t\t<obchodneMeno>\n\t\t\t\t<riadok></riadok>\n\t\t\t\t<riadok></riadok>\n\t\t\t</obchodneMeno>\n\t\t</c7prijimatel1>\n';
 
   xml += '\t\t<osobitneZaznamy><![CDATA['+(h.osobitneZaznamy ?? '')+']]></osobitneZaznamy>\n';
 
@@ -703,8 +711,17 @@ function generateXml(header, rows, tabARows, tabBRows) {
   xml += '\t\t\t<trvalyPobyt>\n\t\t\t\t<ulica></ulica>\n\t\t\t\t<cislo></cislo>\n\t\t\t\t<psc></psc>\n\t\t\t\t<obec></obec>\n\t\t\t\t<stat></stat>\n\t\t\t\t<tel></tel>\n\t\t\t\t<emailFax></emailFax>\n\t\t\t</trvalyPobyt>\n';
   xml += '\t\t</opravnenaOsoba>\n';
 
-  xml += '\t\t<pocetPriloh>'+esc(h.pocetPriloh || '')+'</pocetPriloh>\n';
-  xml += '\t\t<datumVyhlasenia>'+esc(fmtDate(h.datumVyhlasenia) || '')+'</datumVyhlasenia>\n';
+  xml += '\t\t<pocetPriloh>5</pocetPriloh>\n';
+  const todayStr = (() => { const t = new Date(); return String(t.getDate()).padStart(2,'0')+'.'+String(t.getMonth()+1).padStart(2,'0')+'.'+t.getFullYear(); })();
+  const parseDdMmYyyy = (s) => { if (!s || !/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(String(s).trim())) return null; const [d,m,y] = String(s).split('.').map(Number); return new Date(y, m-1, d); };
+  let datumVyhlaseniaVal = fmtDate(h.datumVyhlasenia) || todayStr;
+  const zdanObdDoStr = fmtDate(h.zdanObdDo);
+  const endD = parseDdMmYyyy(zdanObdDoStr);
+  const vyhlD = parseDdMmYyyy(datumVyhlaseniaVal);
+  if (endD && vyhlD && vyhlD < endD) {
+    datumVyhlaseniaVal = String(endD.getDate()).padStart(2,'0')+'.'+String(endD.getMonth()+1).padStart(2,'0')+'.'+endD.getFullYear();
+  }
+  xml += '\t\t<datumVyhlasenia>'+esc(datumVyhlaseniaVal)+'</datumVyhlasenia>\n';
 
   xml += '\t\t<platenieDanePar17f>\n\t\t\t<ziadam17f>0</ziadam17f>\n';
   for (let i=0;i<5;i++) xml += '\t\t\t<splatka>\n\t\t\t\t<datumSplat></datumSplat>\n\t\t\t\t<suma></suma>\n\t\t\t</splatka>\n';
