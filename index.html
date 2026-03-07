@@ -420,18 +420,32 @@ function parseExcelFile(arrayBuffer) {
     // Osobitné záznamy
     result.header.osobitneZaznamy = cv('C26') || '';
 
-    // Oprávnená osoba (riadky 30–34 po vložení bloku na ZU)
-    result.header.priezvisko = cv('C30') || '';
-    result.header.meno = cv('C31') || '';
-    result.header.titul = cv('C32') || '';
-    result.header.titulZa = cv('C33') || '';
-    result.header.postavenie = cv('C34') || '';
-
-    // Telefón, email, prílohy, dátum (posunuté nadol o 6 riadkov po bloku Oprávnená osoba)
-    result.header.sidloTel = cv('C39') || '';
-    result.header.sidloEmail = cv('C40') || '';
-    result.header.pocetPriloh = cv('C41') || '';
-    result.header.datumVyhlasenia = fmtDate(cv('C42')) || '';
+    // Oprávnená osoba: podpora dvoch layoutov
+    // – Pôvodný súbor (Výpočet ZD 2025 v.1.1): oprávnená osoba v H30–H34, tel/email v C33–C36
+    // – Šablóna s vloženým blokom: oprávnená osoba v C30–C34, tel/email v C39–C42
+    const oh = (c) => (ws[c] ? ws[c].v : '');
+    const hasH = oh('H30') || oh('H31') || oh('H32') || oh('H33') || oh('H34');
+    if (hasH) {
+      result.header.priezvisko = oh('H30') || '';
+      result.header.meno = oh('H31') || '';
+      result.header.titul = oh('H32') || '';
+      result.header.titulZa = oh('H33') || '';
+      result.header.postavenie = oh('H34') || '';
+      result.header.sidloTel = cv('C33') || '';
+      result.header.sidloEmail = cv('C34') || '';
+      result.header.pocetPriloh = cv('C35') || '';
+      result.header.datumVyhlasenia = fmtDate(cv('C36')) || '';
+    } else {
+      result.header.priezvisko = cv('C30') || '';
+      result.header.meno = cv('C31') || '';
+      result.header.titul = cv('C32') || '';
+      result.header.titulZa = cv('C33') || '';
+      result.header.postavenie = cv('C34') || '';
+      result.header.sidloTel = cv('C39') || '';
+      result.header.sidloEmail = cv('C40') || '';
+      result.header.pocetPriloh = cv('C41') || '';
+      result.header.datumVyhlasenia = fmtDate(cv('C42')) || '';
+    }
 
     const zdanPrijmy = cv('C19');
     if (zdanPrijmy && typeof zdanPrijmy === 'number') result.rows[560] = zdanPrijmy;
@@ -707,13 +721,12 @@ function generateXml(header, rows, tabARows, tabBRows) {
   for (let i=1;i<=10;i++) xml += '\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
   xml += '\t\t</tabE>\n';
 
-  const r100Filled = (() => { const v = rv(100); return v !== '' && v !== null && v !== undefined; })();
   const tabF_r01 = fmtDec(rv(560));
   const tabF_r02 = fmtDec(rv(561));
-  const tabF_r03 = r100Filled ? '' : (tabF_r01 && tabF_r02 ? fmtDec(parseFloat(String(rv(560)).replace(',','.')) - parseFloat(String(rv(561)).replace(',','.'))) : fmtDec(rv(562)));
+  const tabF_r03 = (tabF_r01 && tabF_r02) ? fmtDec(parseFloat(String(rv(560)).replace(',','.')) - parseFloat(String(rv(561)).replace(',','.'))) : fmtDec(rv(562));
   xml += '\t\t<tabF>\n';
-  xml += '\t\t\t<r01>'+esc(r100Filled ? '' : tabF_r01)+'</r01>\n';
-  xml += '\t\t\t<r02>'+esc(r100Filled ? '' : tabF_r02)+'</r02>\n';
+  xml += '\t\t\t<r01>'+esc(tabF_r01)+'</r01>\n';
+  xml += '\t\t\t<r02>'+esc(tabF_r02)+'</r02>\n';
   xml += '\t\t\t<r03>'+esc(tabF_r03)+'</r03>\n';
   xml += '\t\t</tabF>\n';
 
