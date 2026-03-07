@@ -3,156 +3,253 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DPPO 2025 – Generátor XML E-Form | Helwitax</title>
+<title>DPPO 2025 – Generátor XML | Helwitax</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@300;400;500;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg1: #0a1628; --bg2: #1a2744; --bg3: #0d2137;
-  --card: rgba(255,255,255,0.04); --border: rgba(100,160,255,0.12);
-  --accent: #4d9de0; --accent2: #6ba3d6; --text: #e0e8f0; --muted: #7da4c7;
-  --input-bg: rgba(0,0,0,0.3); --input-border: rgba(100,160,255,0.2);
+  --purple: #321941;
+  --purple2: #3C1E46;
+  --green: #AFFA96;
+  --green2: #CDFFB4;
+  --bg: #f7f6f9;
+  --surface: #ffffff;
+  --surface2: #f2f0f5;
+  --border: #e4dff0;
+  --text: #321941;
+  --muted: #7a6b90;
+  --sans: 'Cabinet Grotesk', sans-serif;
 }
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  min-height: 100vh; font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-  background: linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 50%, var(--bg3) 100%);
-  color: var(--text);
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;font-size:14px}
+
+/* ── HEADER ── */
+header{
+  background:var(--purple);padding:0 40px;height:64px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
 }
-.topbar {
-  background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border);
-  padding: 20px 28px; display: flex; align-items: center; justify-content: space-between;
-  flex-wrap: wrap; gap: 12px;
+.logo-wrap{display:flex;align-items:center;gap:14px}
+.logo-text{font-size:18px;font-weight:800;color:#fff;letter-spacing:-.02em}
+.logo-divider{width:1px;height:24px;background:rgba(175,250,150,.25)}
+.logo-label{font-size:11px;font-weight:600;color:rgba(175,250,150,.7);letter-spacing:.06em;text-transform:uppercase}
+.badge{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:var(--green);color:var(--purple);padding:4px 12px;border-radius:20px}
+.header-actions{display:flex;align-items:center;gap:10px}
+
+/* ── CONTAINER ── */
+.container{max-width:940px;margin:0 auto;padding:40px 24px 100px}
+
+/* ── PAGE HERO ── */
+.page-hero{
+  background:var(--purple);border-radius:12px;padding:28px 32px;margin-bottom:24px;
+  position:relative;overflow:hidden;
 }
-.topbar-brand { font-size: 11px; letter-spacing: 3px; color: var(--accent2); text-transform: uppercase; margin-bottom: 4px; }
-.topbar h1 { font-size: 22px; font-weight: 700; color: #fff; }
-.topbar h1 span { color: var(--accent); font-weight: 400; }
-.topbar-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-.tabs {
-  display: flex; gap: 0; border-bottom: 1px solid var(--border);
-  background: rgba(0,0,0,0.15); padding: 0 28px; overflow-x: auto;
+.page-hero::before{
+  content:'';position:absolute;right:-60px;top:-60px;
+  width:220px;height:220px;
+  background:radial-gradient(circle, rgba(175,250,150,.15) 0%, transparent 70%);
 }
-.tab-btn {
-  background: none; border: none; cursor: pointer; padding: 12px 20px;
-  font-size: 13px; font-weight: 400; color: var(--muted);
-  border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap;
+.page-hero h1{color:#fff;font-size:24px;font-weight:800;margin-bottom:4px;letter-spacing:-.02em}
+.page-hero .subtitle{color:rgba(175,250,150,.7);font-size:13px;margin-bottom:0}
+
+/* ── STEPS ── */
+.steps{display:flex;gap:0;margin-bottom:32px;background:var(--surface);border:1.5px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(50,25,65,.06)}
+.step{flex:1;padding:18px 8px;background:transparent;border-right:1px solid var(--border);cursor:pointer;transition:background .15s;text-align:center}
+.step:last-child{border-right:none}
+.step.active{background:var(--purple)}
+.step.done{background:rgba(175,250,150,.12)}
+.step-num{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;letter-spacing:.06em}
+.step-label{font-size:13px;font-weight:700;color:var(--text)}
+.step.active .step-num{color:rgba(175,250,150,.6)}
+.step.active .step-label{color:var(--green)}
+.step.done .step-num{color:#7a6b90}
+.step.done .step-label{color:#321941}
+
+/* ── SECTIONS ── */
+.section{background:var(--surface);border:1.5px solid var(--border);border-radius:12px;margin-bottom:20px;overflow:hidden;box-shadow:0 2px 8px rgba(50,25,65,.05)}
+.section-header{padding:14px 22px;background:var(--surface2);border-bottom:1.5px solid var(--border);display:flex;align-items:center;gap:10px}
+.section-tag{font-size:10px;font-weight:800;color:var(--purple);background:var(--green);padding:3px 9px;border-radius:20px;letter-spacing:.06em;text-transform:uppercase}
+.section-title{font-size:13px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--purple)}
+.section-body{padding:22px}
+
+/* ── GRID / FIELDS ── */
+.grid{display:grid;gap:16px}
+.grid-2{grid-template-columns:1fr 1fr}
+.grid-3{grid-template-columns:1fr 1fr 1fr}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+.field input,.field select,.field textarea{
+  background:var(--bg);border:1.5px solid var(--border);color:var(--text);
+  padding:10px 13px;border-radius:8px;font-family:var(--sans);font-size:13px;font-weight:500;
+  transition:border-color .15s;width:100%;
 }
-.tab-btn.active { font-weight: 700; color: #fff; border-bottom-color: var(--accent); }
-.tab-btn:hover { color: #fff; }
-.content { padding: 24px 28px; max-width: 1020px; margin: 0 auto; }
-.card {
-  background: var(--card); border: 1px solid var(--border);
-  border-radius: 12px; padding: 24px; margin-bottom: 16px;
+.field input:focus,.field textarea:focus{outline:none;border-color:var(--purple);box-shadow:0 0 0 3px rgba(50,25,65,.08)}
+.field input[readonly]{background:var(--surface2);color:var(--muted);cursor:default}
+.field textarea{resize:vertical;min-height:80px}
+
+/* ── UPLOAD AREA ── */
+.upload-area{
+  border:2px dashed var(--border);border-radius:16px;padding:60px 20px;
+  text-align:center;background:var(--surface);transition:all .2s;
 }
-.section-title { font-size: 15px; font-weight: 700; color: var(--accent); letter-spacing: 0.3px; margin: 0 0 16px; }
-.section-divider {
-  grid-column: 1 / -1; padding: 10px 0 4px; font-size: 12px; font-weight: 700;
-  color: var(--accent); border-top: 1px solid rgba(100,160,255,0.1); margin-top: 8px; letter-spacing: 0.5px;
+.upload-area.drag{border-color:var(--purple);background:rgba(50,25,65,.04)}
+.upload-area .icon{font-size:48px;margin-bottom:16px}
+.upload-area h2{font-size:18px;font-weight:700;margin-bottom:8px;color:var(--purple)}
+.upload-area p{color:var(--muted);margin-bottom:20px;font-size:14px}
+
+/* ── BUTTONS ── */
+.btn-row{display:flex;gap:12px;margin-top:28px;justify-content:flex-end}
+.btn{padding:11px 26px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:none;font-family:var(--sans);transition:all .15s;letter-spacing:.02em}
+.btn-primary{background:var(--purple);color:#fff}
+.btn-primary:hover{background:var(--purple2);transform:translateY(-1px);box-shadow:0 4px 12px rgba(50,25,65,.25)}
+.btn-green{background:var(--green);color:var(--purple)}
+.btn-green:hover{background:var(--green2);transform:translateY(-1px);box-shadow:0 4px 12px rgba(175,250,150,.4)}
+.btn-secondary{background:transparent;border:1.5px solid var(--border);color:var(--text)}
+.btn-secondary:hover{border-color:var(--purple);color:var(--purple)}
+label.btn{display:inline-block}
+label.btn input[type="file"]{display:none}
+
+/* ── SUMMARY TABLE ── */
+.sum-table{width:100%;border-collapse:collapse}
+.sum-table tr{border-bottom:1px solid var(--border)}
+.sum-table tr:last-child{border-bottom:none}
+.sum-table td{padding:11px 16px;font-size:13px}
+.sum-table td:first-child{color:var(--muted);font-size:10px;font-weight:700;width:70px;letter-spacing:.04em}
+.sum-table td:last-child{text-align:right;font-weight:700;font-family:var(--sans)}
+.sum-table .total td{color:var(--purple);font-size:16px;font-weight:800;background:rgba(175,250,150,.18)}
+.sum-table .section-sep td{background:var(--surface2);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);padding:7px 16px;font-weight:800}
+
+/* ── CHECK GRID ── */
+.check-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.check-item{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg);border-radius:8px;font-size:12px;font-weight:500}
+.check-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.check-dot.on{background:var(--green)}
+.check-dot.off{background:var(--border)}
+
+/* ── INFO BOX ── */
+.info-box{padding:13px 16px;background:rgba(175,250,150,.15);border:1.5px solid rgba(175,250,150,.5);border-radius:8px;font-size:12px;color:var(--purple);line-height:1.6;margin-bottom:16px;font-weight:500}
+
+/* ── XML OUTPUT ── */
+.xml-output{
+  background:var(--purple);border-radius:10px;padding:18px;
+  font-family:monospace;font-size:11px;color:var(--green);
+  overflow-x:auto;white-space:pre-wrap;word-break:break-all;max-height:600px;overflow-y:auto;line-height:1.7;
 }
-.upload-area {
-  border: 2px dashed rgba(100,160,255,0.25); border-radius: 16px; padding: 60px 20px;
-  text-align: center; background: rgba(255,255,255,0.02); transition: all 0.2s; margin-top: 60px;
-}
-.upload-area.drag { border-color: var(--accent); background: rgba(77,157,224,0.08); }
-.upload-area .icon { font-size: 48px; margin-bottom: 16px; }
-.upload-area h2 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
-.upload-area p { color: var(--muted); margin-bottom: 20px; font-size: 14px; }
-.btn {
-  border: none; border-radius: 8px; padding: 8px 18px; font-size: 13px;
-  font-weight: 600; cursor: pointer; color: #fff; transition: filter 0.15s;
-}
-.btn:hover { filter: brightness(1.15); }
-.btn-blue { background: #2563eb; }
-.btn-green { background: #059669; }
-.btn-gray { background: #6b7280; }
-.btn-sm { padding: 4px 12px; font-size: 12px; }
-label.btn { display: inline-block; }
-label.btn input[type="file"] { display: none; }
-.grid-table { display: grid; grid-template-columns: 80px 1fr 150px; gap: 0; }
-.th { padding: 8px; font-size: 11px; font-weight: 700; color: var(--accent2); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid rgba(100,160,255,0.15); }
-.th-right { text-align: right; }
-.td { padding: 6px 8px; font-size: 13px; border-bottom: 1px solid rgba(100,160,255,0.05); }
-.td-num { padding: 3px 0; text-align: right; border-bottom: 1px solid rgba(100,160,255,0.05); }
-.td-muted { color: var(--muted); }
-.td-bold { font-weight: 700; }
-.td-bold-w { font-weight: 600; }
-input.num-input {
-  width: 100%; text-align: right; background: rgba(0,0,0,0.2);
-  border: 1px solid rgba(100,160,255,0.1); border-radius: 4px; color: #c8dae8;
-  padding: 5px 8px; font-size: 13px; font-family: 'Consolas', 'Monaco', monospace;
-}
-input.num-input.bold { color: #fff; font-weight: 700; }
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-.field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
-.field input[type="text"], .field input[type="number"] {
-  width: 100%; background: var(--input-bg); border: 1px solid var(--input-border);
-  border-radius: 6px; color: var(--text); padding: 8px 10px; font-size: 14px; font-family: inherit;
-}
-.field.full { grid-column: 1 / -1; }
-.check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.check-label {
-  display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 6px 0; font-size: 13px;
-}
-.check-label input { accent-color: var(--accent); width: 16px; height: 16px; }
-textarea.oz-area {
-  width: 100%; background: var(--input-bg); border: 1px solid var(--input-border);
-  border-radius: 8px; color: var(--text); padding: 10px 12px; font-size: 13px;
-  font-family: inherit; resize: vertical;
-}
-.xml-pre {
-  background: rgba(0,0,0,0.4); border-radius: 8px; padding: 16px; font-size: 11px;
-  line-height: 1.5; overflow-x: auto; max-height: 600px; color: #a8d4f0;
-  border: 1px solid rgba(100,160,255,0.1); white-space: pre-wrap; word-break: break-all;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-}
-.info-bar {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 20px;
-}
-.info-bar .label { color: var(--accent2); font-size: 13px; }
-.info-bar .value { font-weight: 600; }
-.info-bar .count { color: var(--muted); font-size: 13px; }
-@media (max-width: 700px) {
-  .form-grid, .check-grid { grid-template-columns: 1fr; }
-  .grid-table { grid-template-columns: 60px 1fr 110px; }
-  .content { padding: 16px; }
-  .topbar { padding: 16px; }
+
+/* ── PAGES ── */
+.page{display:none}
+.page.active{display:block}
+
+/* ── RESPONSIVE ── */
+@media(max-width:640px){
+  .grid-2,.grid-3,.check-grid{grid-template-columns:1fr}
+  header{padding:0 16px}
+  .container{padding:20px 16px 60px}
+  .steps{flex-direction:column}
+  .step{border-right:none;border-bottom:1px solid var(--border)}
+  .page-hero{padding:20px}
+  .page-hero h1{font-size:20px}
 }
 </style>
 </head>
 <body>
 
-<div class="topbar">
-  <div>
-    <div class="topbar-brand">Helwitax · Generátor XML E-Form</div>
-    <h1>Daňové priznanie PO <span>2025</span></h1>
+<header>
+  <div class="logo-wrap">
+    <div class="logo-text">helwitax</div>
+    <div class="logo-divider"></div>
+    <div class="logo-label">DPPO Generator</div>
   </div>
-  <div class="topbar-actions" id="topActions" style="display:none">
-    <button class="btn btn-blue" onclick="doGenerate()">Generovať XML</button>
-    <button class="btn btn-green" onclick="doDownload()">⬇ Stiahnuť XML</button>
+  <div class="header-actions">
+    <span class="badge">2025</span>
   </div>
-</div>
+</header>
 
-<div class="tabs" id="tabBar" style="display:none">
-  <button class="tab-btn active" data-tab="data">Dáta z Excelu</button>
-  <button class="tab-btn" data-tab="header">Hlavička DP</button>
-  <button class="tab-btn" data-tab="osoba">Oprávnená osoba</button>
-  <button class="tab-btn" data-tab="xml">XML náhľad</button>
-</div>
-
-<div class="content">
-  <div id="uploadArea" class="upload-area"
-    ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
-    <div class="icon">📊</div>
-    <h2>Pretiahnite Excel súbor sem</h2>
-    <p>Výpočet_ZD_2025.xlsm alebo podobný súbor s hárkom „Pomôcka k DP"</p>
-    <label class="btn btn-blue">Vybrať súbor
-      <input type="file" accept=".xlsx,.xlsm,.xls" onchange="handleFileInput(event)">
-    </label>
+<div class="container">
+  <div class="page-hero">
+    <h1>Daňové priznanie právnických osôb</h1>
+    <div class="subtitle">Generátor XML z interného Excel súboru (Výpočet ZD)</div>
   </div>
-  <div id="tab-data" class="tab-content" style="display:none"></div>
-  <div id="tab-header" class="tab-content" style="display:none"></div>
-  <div id="tab-osoba" class="tab-content" style="display:none"></div>
-  <div id="tab-xml" class="tab-content" style="display:none"></div>
+
+  <div class="steps" id="stepBar">
+    <div class="step active" data-step="upload">
+      <span class="step-num">KROK 1</span>
+      <span class="step-label">Nahrať Excel</span>
+    </div>
+    <div class="step" data-step="data">
+      <span class="step-num">KROK 2</span>
+      <span class="step-label">Dáta</span>
+    </div>
+    <div class="step" data-step="header">
+      <span class="step-num">KROK 3</span>
+      <span class="step-label">Hlavička DP</span>
+    </div>
+    <div class="step" data-step="osoba">
+      <span class="step-num">KROK 4</span>
+      <span class="step-label">Oprávnená osoba</span>
+    </div>
+    <div class="step" data-step="xml">
+      <span class="step-num">KROK 5</span>
+      <span class="step-label">XML výstup</span>
+    </div>
+  </div>
+
+  <!-- PAGE: UPLOAD -->
+  <div class="page active" id="page-upload">
+    <div class="section">
+      <div class="section-body">
+        <div class="upload-area" id="uploadArea"
+          ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+          <div class="icon">📊</div>
+          <h2>Pretiahnite Excel súbor sem</h2>
+          <p>Výpočet_ZD_2025.xlsm alebo podobný súbor s hárkom „Pomôcka k DP"</p>
+          <label class="btn btn-primary" style="padding:13px 32px">Vybrať súbor
+            <input type="file" accept=".xlsx,.xlsm,.xls" onchange="handleFileInput(event)">
+          </label>
+        </div>
+        <div class="info-box" style="margin-top:16px">
+          Aplikácia načíta údaje z hárkov <strong>Základné údaje</strong>, <strong>Pomôcka k DP</strong> a <strong>Pomocné výpočty</strong>.
+          Všetky polia sú len na čítanie — dáta sa menia výhradne v Exceli.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE: DATA -->
+  <div class="page" id="page-data">
+    <div id="dataContent"></div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep('upload')">Späť</button>
+      <button class="btn btn-primary" onclick="goStep('header')">Pokračovať</button>
+    </div>
+  </div>
+
+  <!-- PAGE: HEADER -->
+  <div class="page" id="page-header">
+    <div id="headerContent"></div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep('data')">Späť</button>
+      <button class="btn btn-primary" onclick="goStep('osoba')">Pokračovať</button>
+    </div>
+  </div>
+
+  <!-- PAGE: OSOBA -->
+  <div class="page" id="page-osoba">
+    <div id="osobaContent"></div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep('header')">Späť</button>
+      <button class="btn btn-green" onclick="doGenerate()">Generovať XML</button>
+    </div>
+  </div>
+
+  <!-- PAGE: XML -->
+  <div class="page" id="page-xml">
+    <div id="xmlContent"></div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep('osoba')">Späť</button>
+      <button class="btn btn-green" onclick="doDownload()">Stiahnuť XML súbor</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -212,11 +309,11 @@ const ROW_LABELS = {
 };
 
 const SECTION_HEADERS = {
-  100:"II. časť – Výpočet základu dane a dane",
-  301:"Základ dane / daňová strata",
-  310:"Výpočet dane",
-  810:"Minimálna daň",
-  1010:"Preddavky a splatná daň",
+  100:"II. ČASŤ – VÝPOČET ZÁKLADU DANE A DANE",
+  301:"ZÁKLAD DANE / DAŇOVÁ STRATA",
+  310:"VÝPOČET DANE",
+  810:"MINIMÁLNA DAŇ",
+  1010:"PREDDAVKY A SPLATNÁ DAŇ",
 };
 
 const BOLD_ROWS = new Set([200,300,301,310,400,500,510,600,700,800,900,1050,1080,1100,1101]);
@@ -356,7 +453,6 @@ function fmtDec(v) {
   if (v===null||v===undefined||v===''||v===0) return '';
   const n = typeof v==='number' ? v : parseFloat(String(v).replace(',','.'));
   if (isNaN(n)) return '';
-  // Special case: r900 should be "0.00" not empty
   if (n === 0) return '0.00';
   return n.toFixed(2);
 }
@@ -375,13 +471,10 @@ function generateXml(header, rows, tabARows, tabBRows) {
   tabARows = tabARows || {};
   tabBRows = tabBRows || {};
 
-  // XML declaration with lowercase utf-8
   let xml = '<?xml version="1.0" encoding="utf-8"?>\n';
   xml += '<dokument>\n';
 
-  // =====================================================================
-  // HLAVICKA SECTION
-  // =====================================================================
+  // HLAVICKA
   xml += '\t<hlavicka>\n';
   xml += '\t\t'+xmlEl('dic', h.dic || '') + '\n';
   xml += '\t\t'+xmlEl('ico', h.ico || '') + '\n';
@@ -441,16 +534,12 @@ function generateXml(header, rows, tabARows, tabBRows) {
 
   xml += '\t</hlavicka>\n';
 
-  // =====================================================================
-  // TELO SECTION
-  // =====================================================================
+  // TELO
   xml += '\t<telo>\n';
 
-  // Main rows r100-r1110
   for (const [rNum, xmlName] of ROW_MAP) {
     const val = rv(rNum);
     if (rNum === 550) {
-      // r550 = sadzba dane as integer (10, 21, 24), not decimal
       let sadzba = '';
       if (val!==''&&val!==null&&val!==undefined) {
         const n = typeof val==='number' ? val : parseFloat(String(val).replace(',','.'));
@@ -458,19 +547,25 @@ function generateXml(header, rows, tabARows, tabBRows) {
       }
       xml += '\t\t<'+xmlName+'>'+esc(sadzba)+'</'+xmlName+'>\n';
     } else if (rNum === 900) {
-      // r900: "0.00" when zero (special case)
       let v = fmtDec(val);
-      if (val === '' || val === null || val === undefined) v = '0.00';
+      if (!v) v = '0.00';
       xml += '\t\t<'+xmlName+'>'+esc(v)+'</'+xmlName+'>\n';
     } else {
       xml += '\t\t'+xmlDec(xmlName, val) + '\n';
     }
+
+    // r610 goes between r600 and r700
+    if (rNum === 600) {
+      const r610val = rv(610);
+      xml += '\t\t<r610>\n';
+      xml += '\t\t\t<text>' + esc(typeof r610val === 'object' && r610val && r610val.text ? r610val.text : '') + '</text>\n';
+      xml += '\t\t\t<suma>' + esc(typeof r610val === 'object' && r610val && r610val.suma ? fmtDec(r610val.suma) : fmtDec(r610val)) + '</suma>\n';
+      xml += '\t\t</r610>\n';
+    }
   }
 
-  // ddpDatum
   xml += '\t\t<ddpDatum></ddpDatum>\n';
 
-  // r1120-r1192
   xml += '\t\t<r1120>'+esc(fmtDec(rv(1120)))+'</r1120>\n';
   xml += '\t\t<r1130>'+esc(fmtDec(rv(1130)))+'</r1130>\n';
   xml += '\t\t<r1140>'+esc(fmtDec(rv(1140)))+'</r1140>\n';
@@ -482,7 +577,6 @@ function generateXml(header, rows, tabARows, tabBRows) {
   xml += '\t\t<r1191>'+esc(fmtDec(rv(1191)))+'</r1191>\n';
   xml += '\t\t<r1192>'+esc(fmtDec(rv(1192)))+'</r1192>\n';
 
-  // TabA (r01-r17, NOT r01taba)
   xml += '\t\t<tabA>\n';
   for (let i=1;i<=17;i++) {
     const key = '130/A'+i;
@@ -491,7 +585,6 @@ function generateXml(header, rows, tabARows, tabBRows) {
   }
   xml += '\t\t</tabA>\n';
 
-  // TabB (r01-r06)
   xml += '\t\t<tabB>\n';
   for (let i=1;i<=6;i++) {
     const key = 'B'+i;
@@ -500,322 +593,124 @@ function generateXml(header, rows, tabARows, tabBRows) {
   }
   xml += '\t\t</tabB>\n';
 
-  // TabC1, TabC2 (r01-r06 each)
   xml += '\t\t<tabC1>\n';
-  for (let i=1;i<=6;i++) {
-    xml += '\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
-  }
+  for (let i=1;i<=6;i++) xml += '\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
   xml += '\t\t</tabC1>\n';
 
   xml += '\t\t<tabC2>\n';
-  for (let i=1;i<=6;i++) {
-    xml += '\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
-  }
+  for (let i=1;i<=6;i++) xml += '\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
   xml += '\t\t</tabC2>\n';
 
-  // TabD with tabDs01-tabDs09
   xml += '\t\t<tabD>\n';
-  xml += '\t\t\t<tabDs01>\n';
-  xml += '\t\t\t\t<r01></r01>\n';
-  xml += '\t\t\t\t<r02></r02>\n';
-  xml += '\t\t\t\t<r03></r03>\n';
-  xml += '\t\t\t</tabDs01>\n';
+  xml += '\t\t\t<tabDs01>\n\t\t\t\t<r01></r01>\n\t\t\t\t<r02></r02>\n\t\t\t\t<r03></r03>\n\t\t\t</tabDs01>\n';
   for (let i=2;i<=9;i++) {
     xml += '\t\t\t<tabDs'+pad2(i)+'>\n';
-    if (i <= 8) {
-      xml += '\t\t\t\t<datumOd></datumOd>\n';
-      xml += '\t\t\t\t<datumDo></datumDo>\n';
-    }
-    xml += '\t\t\t\t<r01></r01>\n';
-    xml += '\t\t\t\t<r02></r02>\n';
-    xml += '\t\t\t\t<r03></r03>\n';
+    if (i <= 8) { xml += '\t\t\t\t<datumOd></datumOd>\n\t\t\t\t<datumDo></datumDo>\n'; }
+    xml += '\t\t\t\t<r01></r01>\n\t\t\t\t<r02></r02>\n\t\t\t\t<r03></r03>\n';
     xml += '\t\t\t</tabDs'+pad2(i)+'>\n';
   }
   xml += '\t\t</tabD>\n';
 
-  // TabE (r01-r10)
   xml += '\t\t<tabE>\n';
-  for (let i=1;i<=10;i++) {
-    xml += '\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
-  }
+  for (let i=1;i<=10;i++) xml += '\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
   xml += '\t\t</tabE>\n';
 
-  // TabF (r01-r03)
   xml += '\t\t<tabF>\n';
-  for (let i=1;i<=3;i++) {
-    xml += '\t\t\t<r'+pad2(i)+'>'+esc(fmtDec(rv(560 + i - 1)))+'</r'+pad2(i)+'>\n';
-  }
+  for (let i=1;i<=3;i++) xml += '\t\t\t<r'+pad2(i)+'>'+esc(fmtDec(rv(560 + i - 1)))+'</r'+pad2(i)+'>\n';
   xml += '\t\t</tabF>\n';
 
-  // TabG1, TabG2 (r01-r03 each)
   xml += '\t\t<tabG1>\n';
-  for (let i=1;i<=3;i++) {
-    xml += '\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
-  }
+  for (let i=1;i<=3;i++) xml += '\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
   xml += '\t\t</tabG1>\n';
-
   xml += '\t\t<tabG2>\n';
-  for (let i=1;i<=3;i++) {
-    xml += '\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
-  }
+  for (let i=1;i<=3;i++) xml += '\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
   xml += '\t\t</tabG2>\n';
-
-  // TabG3 (r01-r04)
   xml += '\t\t<tabG3>\n';
-  for (let i=1;i<=4;i++) {
-    xml += '\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
-  }
+  for (let i=1;i<=4;i++) xml += '\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
   xml += '\t\t</tabG3>\n';
 
-  // TabH
-  xml += '\t\t<tabH>\n';
-  xml += '\t\t\t<r01></r01>\n';
-  xml += '\t\t\t<prijmy>\n';
-  for (let i=2;i<=10;i++) {
-    xml += '\t\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
-  }
-  xml += '\t\t\t</prijmy>\n';
-  xml += '\t\t\t<vydavky>\n';
-  for (let i=2;i<=10;i++) {
-    xml += '\t\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
-  }
-  xml += '\t\t\t</vydavky>\n';
-  xml += '\t\t\t<r11></r11>\n';
-  xml += '\t\t</tabH>\n';
+  xml += '\t\t<tabH>\n\t\t\t<r01></r01>\n\t\t\t<prijmy>\n';
+  for (let i=2;i<=10;i++) xml += '\t\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
+  xml += '\t\t\t</prijmy>\n\t\t\t<vydavky>\n';
+  for (let i=2;i<=10;i++) xml += '\t\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
+  xml += '\t\t\t</vydavky>\n\t\t\t<r11></r11>\n\t\t</tabH>\n';
 
-  // TabI (r01-r18 each containing druh/vplyvNaR100/nazovZavislejOsoby/kodStatu)
   xml += '\t\t<tabI>\n';
   for (let i=1;i<=18;i++) {
-    xml += '\t\t\t<r'+pad2(i)+'>\n';
-    xml += '\t\t\t\t<druh></druh>\n';
-    xml += '\t\t\t\t<vplyvNaR100></vplyvNaR100>\n';
-    xml += '\t\t\t\t<nazovZavislejOsoby></nazovZavislejOsoby>\n';
-    xml += '\t\t\t\t<kodStatu></kodStatu>\n';
-    xml += '\t\t\t</r'+pad2(i)+'>\n';
+    xml += '\t\t\t<r'+pad2(i)+'>\n\t\t\t\t<druh></druh>\n\t\t\t\t<vplyvNaR100></vplyvNaR100>\n\t\t\t\t<nazovZavislejOsoby></nazovZavislejOsoby>\n\t\t\t\t<kodStatu></kodStatu>\n\t\t\t</r'+pad2(i)+'>\n';
   }
   xml += '\t\t</tabI>\n';
 
-  // TabJ (r01-r02)
-  xml += '\t\t<tabJ>\n';
-  xml += '\t\t\t<r01></r01>\n';
-  xml += '\t\t\t<r02></r02>\n';
-  xml += '\t\t</tabJ>\n';
+  xml += '\t\t<tabJ>\n\t\t\t<r01></r01>\n\t\t\t<r02></r02>\n\t\t</tabJ>\n';
 
-  // obmedzenaDanovaPovinnost
-  xml += '\t\t<obmedzenaDanovaPovinnost>\n';
-  xml += '\t\t\t<datumOd></datumOd>\n';
-  xml += '\t\t\t<datumDo></datumDo>\n';
-  xml += '\t\t\t<TIN></TIN>\n';
-  xml += '\t\t</obmedzenaDanovaPovinnost>\n';
+  xml += '\t\t<obmedzenaDanovaPovinnost>\n\t\t\t<datumOd></datumOd>\n\t\t\t<datumDo></datumDo>\n\t\t\t<TIN></TIN>\n\t\t</obmedzenaDanovaPovinnost>\n';
 
-  // TabK
-  xml += '\t\t<tabK>\n';
-  xml += '\t\t\t<obdobiaMinimalDane>\n';
+  xml += '\t\t<tabK>\n\t\t\t<obdobiaMinimalDane>\n';
   for (let per=1;per<=4;per++) {
-    xml += '\t\t\t\t<obdobie'+per+'>\n';
-    xml += '\t\t\t\t\t<datumOd></datumOd>\n';
-    xml += '\t\t\t\t\t<datumDo></datumDo>\n';
-    xml += '\t\t\t\t\t<vyskaKladnehoRozdielu></vyskaKladnehoRozdielu>\n';
-    xml += '\t\t\t\t\t<zapocitanaVPredObdobiach></zapocitanaVPredObdobiach>\n';
-    xml += '\t\t\t\t\t<zapocitanaVDanomObdobi></zapocitanaVDanomObdobi>\n';
-    xml += '\t\t\t\t\t<zostavajucaCast></zostavajucaCast>\n';
-    xml += '\t\t\t\t</obdobie'+per+'>\n';
+    xml += '\t\t\t\t<obdobie'+per+'>\n\t\t\t\t\t<datumOd></datumOd>\n\t\t\t\t\t<datumDo></datumDo>\n\t\t\t\t\t<vyskaKladnehoRozdielu></vyskaKladnehoRozdielu>\n\t\t\t\t\t<zapocitanaVPredObdobiach></zapocitanaVPredObdobiach>\n\t\t\t\t\t<zapocitanaVDanomObdobi></zapocitanaVDanomObdobi>\n\t\t\t\t\t<zostavajucaCast></zostavajucaCast>\n\t\t\t\t</obdobie'+per+'>\n';
   }
-  xml += '\t\t\t</obdobiaMinimalDane>\n';
-  xml += '\t\t\t<spolu>\n';
-  xml += '\t\t\t\t<zapocitanaVDanomObdobi></zapocitanaVDanomObdobi>\n';
-  xml += '\t\t\t\t<zostavajucaCast></zostavajucaCast>\n';
-  xml += '\t\t\t</spolu>\n';
-  xml += '\t\t</tabK>\n';
+  xml += '\t\t\t</obdobiaMinimalDane>\n\t\t\t<spolu>\n\t\t\t\t<zapocitanaVDanomObdobi></zapocitanaVDanomObdobi>\n\t\t\t\t<zostavajucaCast></zostavajucaCast>\n\t\t\t</spolu>\n\t\t</tabK>\n';
 
-  // zdaneniePar17f
   xml += '\t\t<zdaneniePar17f>\n';
-  for (let i=1;i<=6;i++) {
-    xml += '\t\t\t<r'+pad2(i)+'>\n';
-    xml += '\t\t\t\t<s1></s1>\n';
-    xml += '\t\t\t\t<s2></s2>\n';
-    xml += '\t\t\t</r'+pad2(i)+'>\n';
-  }
-  for (let i=7;i<=13;i++) {
-    xml += '\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
-  }
-  for (let i=14;i<=19;i++) {
-    xml += '\t\t\t<r'+pad2(i)+'>\n';
-    xml += '\t\t\t\t<s1></s1>\n';
-    xml += '\t\t\t\t<s2></s2>\n';
-    xml += '\t\t\t</r'+pad2(i)+'>\n';
-  }
-  for (let i=20;i<=31;i++) {
-    xml += '\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
-  }
+  for (let i=1;i<=6;i++) xml += '\t\t\t<r'+pad2(i)+'>\n\t\t\t\t<s1></s1>\n\t\t\t\t<s2></s2>\n\t\t\t</r'+pad2(i)+'>\n';
+  for (let i=7;i<=13;i++) xml += '\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
+  for (let i=14;i<=19;i++) xml += '\t\t\t<r'+pad2(i)+'>\n\t\t\t\t<s1></s1>\n\t\t\t\t<s2></s2>\n\t\t\t</r'+pad2(i)+'>\n';
+  for (let i=20;i<=31;i++) xml += '\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
   xml += '\t\t</zdaneniePar17f>\n';
 
-  // podielyNaZiskuPar51e
   xml += '\t\t<podielyNaZiskuPar51e>\n';
-  for (let i=1;i<=3;i++) {
-    xml += '\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
-  }
-  for (let i=4;i<=6;i++) {
-    xml += '\t\t\t<r'+pad2(i)+'>\n';
-    xml += '\t\t\t\t<s1></s1>\n';
-    xml += '\t\t\t\t<s2></s2>\n';
-    xml += '\t\t\t</r'+pad2(i)+'>\n';
-  }
-  for (let i=7;i<=9;i++) {
-    xml += '\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
-  }
+  for (let i=1;i<=3;i++) xml += '\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
+  for (let i=4;i<=6;i++) xml += '\t\t\t<r'+pad2(i)+'>\n\t\t\t\t<s1></s1>\n\t\t\t\t<s2></s2>\n\t\t\t</r'+pad2(i)+'>\n';
+  for (let i=7;i<=9;i++) xml += '\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
   xml += '\t\t</podielyNaZiskuPar51e>\n';
 
-  // vynosyZoStatnychDlhopisov
   xml += '\t\t<vynosyZoStatnychDlhopisov>\n';
-  for (let i=1;i<=14;i++) {
-    xml += '\t\t\t<r'+i+'>\n';
-    xml += '\t\t\t\t<s1></s1>\n';
-    xml += '\t\t\t\t<s2></s2>\n';
-    xml += '\t\t\t</r'+i+'>\n';
-  }
+  for (let i=1;i<=14;i++) xml += '\t\t\t<r'+i+'>\n\t\t\t\t<s1></s1>\n\t\t\t\t<s2></s2>\n\t\t\t</r'+i+'>\n';
   xml += '\t\t</vynosyZoStatnychDlhopisov>\n';
 
-  // c7paragraf50, suhlasZasl, c7r1-c7r5
   xml += '\t\t<c7paragraf50>0</c7paragraf50>\n';
   xml += '\t\t<suhlasZasl>0</suhlasZasl>\n';
   xml += '\t\t<c7r1>'+esc(fmtDec(rv(1050)))+'</c7r1>\n';
-  xml += '\t\t<c7r2></c7r2>\n';
-  xml += '\t\t<c7r3></c7r3>\n';
-  xml += '\t\t<c7r4></c7r4>\n';
+  xml += '\t\t<c7r2></c7r2>\n\t\t<c7r3></c7r3>\n\t\t<c7r4></c7r4>\n';
   xml += '\t\t<c7r5>1</c7r5>\n';
 
-  // c7prijimatel1
-  xml += '\t\t<c7prijimatel1>\n';
-  xml += '\t\t\t<suma></suma>\n';
-  xml += '\t\t\t<ico></ico>\n';
-  xml += '\t\t\t<obchodneMeno>\n';
-  xml += '\t\t\t\t<riadok></riadok>\n';
-  xml += '\t\t\t\t<riadok></riadok>\n';
-  xml += '\t\t\t</obchodneMeno>\n';
-  xml += '\t\t</c7prijimatel1>\n';
+  xml += '\t\t<c7prijimatel1>\n\t\t\t<suma></suma>\n\t\t\t<ico></ico>\n\t\t\t<obchodneMeno>\n\t\t\t\t<riadok></riadok>\n\t\t\t\t<riadok></riadok>\n\t\t\t</obchodneMeno>\n\t\t</c7prijimatel1>\n';
 
-  // osobitneZaznamy with CDATA
   xml += '\t\t<osobitneZaznamy><![CDATA['+h.osobitneZaznamy+']]></osobitneZaznamy>\n';
 
-  // opravnenaOsoba
   xml += '\t\t<opravnenaOsoba>\n';
   xml += '\t\t\t<priezvisko>'+esc(h.priezvisko || '')+'</priezvisko>\n';
   xml += '\t\t\t<meno>'+esc(h.meno || '')+'</meno>\n';
   xml += '\t\t\t<titul>'+esc(h.titul || '')+'</titul>\n';
   xml += '\t\t\t<titulZa>'+esc(h.titulZa || '')+'</titulZa>\n';
   xml += '\t\t\t<postavenie>'+esc(h.postavenie || '')+'</postavenie>\n';
-  xml += '\t\t\t<trvalyPobyt>\n';
-  xml += '\t\t\t\t<ulica></ulica>\n';
-  xml += '\t\t\t\t<cislo></cislo>\n';
-  xml += '\t\t\t\t<psc></psc>\n';
-  xml += '\t\t\t\t<obec></obec>\n';
-  xml += '\t\t\t\t<stat></stat>\n';
-  xml += '\t\t\t\t<tel></tel>\n';
-  xml += '\t\t\t\t<emailFax></emailFax>\n';
-  xml += '\t\t\t</trvalyPobyt>\n';
+  xml += '\t\t\t<trvalyPobyt>\n\t\t\t\t<ulica></ulica>\n\t\t\t\t<cislo></cislo>\n\t\t\t\t<psc></psc>\n\t\t\t\t<obec></obec>\n\t\t\t\t<stat></stat>\n\t\t\t\t<tel></tel>\n\t\t\t\t<emailFax></emailFax>\n\t\t\t</trvalyPobyt>\n';
   xml += '\t\t</opravnenaOsoba>\n';
 
-  // pocetPriloh, datumVyhlasenia
   xml += '\t\t<pocetPriloh>'+esc(h.pocetPriloh || '')+'</pocetPriloh>\n';
   xml += '\t\t<datumVyhlasenia>'+esc(h.datumVyhlasenia || '')+'</datumVyhlasenia>\n';
 
-  // platenieDanePar17f
-  xml += '\t\t<platenieDanePar17f>\n';
-  xml += '\t\t\t<ziadam17f>0</ziadam17f>\n';
-  for (let i=0;i<5;i++) {
-    xml += '\t\t\t<splatka>\n';
-    xml += '\t\t\t\t<datumSplat></datumSplat>\n';
-    xml += '\t\t\t\t<suma></suma>\n';
-    xml += '\t\t\t</splatka>\n';
-  }
-  xml += '\t\t\t<datum></datum>\n';
-  xml += '\t\t</platenieDanePar17f>\n';
+  xml += '\t\t<platenieDanePar17f>\n\t\t\t<ziadam17f>0</ziadam17f>\n';
+  for (let i=0;i<5;i++) xml += '\t\t\t<splatka>\n\t\t\t\t<datumSplat></datumSplat>\n\t\t\t\t<suma></suma>\n\t\t\t</splatka>\n';
+  xml += '\t\t\t<datum></datum>\n\t\t</platenieDanePar17f>\n';
 
-  // vrateniePreplatku
-  xml += '\t\t<vrateniePreplatku>\n';
-  xml += '\t\t\t<vratit>0</vratit>\n';
-  xml += '\t\t\t<sposobPlatby>\n';
-  xml += '\t\t\t\t<poukazka>0</poukazka>\n';
-  xml += '\t\t\t\t<ucet>0</ucet>\n';
-  xml += '\t\t\t</sposobPlatby>\n';
-  xml += '\t\t\t<bankovyUcet>\n';
-  xml += '\t\t\t\t<IBAN></IBAN>\n';
-  xml += '\t\t\t</bankovyUcet>\n';
-  xml += '\t\t\t<datum></datum>\n';
-  xml += '\t\t</vrateniePreplatku>\n';
+  xml += '\t\t<vrateniePreplatku>\n\t\t\t<vratit>0</vratit>\n\t\t\t<sposobPlatby>\n\t\t\t\t<poukazka>0</poukazka>\n\t\t\t\t<ucet>0</ucet>\n\t\t\t</sposobPlatby>\n\t\t\t<bankovyUcet>\n\t\t\t\t<IBAN></IBAN>\n\t\t\t</bankovyUcet>\n\t\t\t<datum></datum>\n\t\t</vrateniePreplatku>\n';
 
-  // prilPar13aA13b
-  xml += '\t\t<prilPar13aA13b>\n';
-  xml += '\t\t\t<r01></r01>\n';
-  xml += '\t\t\t<cisloPatentuSoftver></cisloPatentuSoftver>\n';
-  xml += '\t\t\t<r02></r02>\n';
-  xml += '\t\t\t<cisloPatentu></cisloPatentu>\n';
-  xml += '\t\t\t<r03></r03>\n';
-  xml += '\t\t</prilPar13aA13b>\n';
+  xml += '\t\t<prilPar13aA13b>\n\t\t\t<r01></r01>\n\t\t\t<cisloPatentuSoftver></cisloPatentuSoftver>\n\t\t\t<r02></r02>\n\t\t\t<cisloPatentu></cisloPatentu>\n\t\t\t<r03></r03>\n\t\t</prilPar13aA13b>\n';
 
-  // prilPar30cOdpocetVydavkov
-  xml += '\t\t<prilPar30cOdpocetVydavkov>\n';
-  xml += '\t\t\t<projektCislo></projektCislo>\n';
-  xml += '\t\t\t<pocetProjektov></pocetProjektov>\n';
-  xml += '\t\t\t<datumRealizacie></datumRealizacie>\n';
-  for (let i=1;i<=5;i++) {
-    xml += '\t\t\t<r'+pad2(i)+'>\n';
-    xml += '\t\t\t\t<s01Od></s01Od>\n';
-    xml += '\t\t\t\t<s01Do></s01Do>\n';
-    xml += '\t\t\t\t<s02></s02>\n';
-    xml += '\t\t\t\t<s03></s03>\n';
-    xml += '\t\t\t</r'+pad2(i)+'>\n';
-  }
-  xml += '\t\t\t<r06></r06>\n';
-  xml += '\t\t\t<ciele></ciele>\n';
-  xml += '\t\t\t<r07></r07>\n';
-  xml += '\t\t\t<r08></r08>\n';
-  xml += '\t\t\t<r09></r09>\n';
-  xml += '\t\t</prilPar30cOdpocetVydavkov>\n';
+  xml += '\t\t<prilPar30cOdpocetVydavkov>\n\t\t\t<projektCislo></projektCislo>\n\t\t\t<pocetProjektov></pocetProjektov>\n\t\t\t<datumRealizacie></datumRealizacie>\n';
+  for (let i=1;i<=5;i++) xml += '\t\t\t<r'+pad2(i)+'>\n\t\t\t\t<s01Od></s01Od>\n\t\t\t\t<s01Do></s01Do>\n\t\t\t\t<s02></s02>\n\t\t\t\t<s03></s03>\n\t\t\t</r'+pad2(i)+'>\n';
+  xml += '\t\t\t<r06></r06>\n\t\t\t<ciele></ciele>\n\t\t\t<r07></r07>\n\t\t\t<r08></r08>\n\t\t\t<r09></r09>\n\t\t</prilPar30cOdpocetVydavkov>\n';
 
-  // prilPar30caOdpocetVydavkovSport
   xml += '\t\t<prilPar30caOdpocetVydavkovSport>\n';
-  for (let i=1;i<=5;i++) {
-    xml += '\t\t\t<r'+pad2(i)+'>\n';
-    xml += '\t\t\t\t<s01Od></s01Od>\n';
-    xml += '\t\t\t\t<s01Do></s01Do>\n';
-    xml += '\t\t\t\t<s02></s02>\n';
-    xml += '\t\t\t\t<s03></s03>\n';
-    xml += '\t\t\t</r'+pad2(i)+'>\n';
-  }
-  xml += '\t\t\t<r06></r06>\n';
-  xml += '\t\t\t<r07></r07>\n';
-  xml += '\t\t\t<r08></r08>\n';
-  xml += '\t\t</prilPar30caOdpocetVydavkovSport>\n';
+  for (let i=1;i<=5;i++) xml += '\t\t\t<r'+pad2(i)+'>\n\t\t\t\t<s01Od></s01Od>\n\t\t\t\t<s01Do></s01Do>\n\t\t\t\t<s02></s02>\n\t\t\t\t<s03></s03>\n\t\t\t</r'+pad2(i)+'>\n';
+  xml += '\t\t\t<r06></r06>\n\t\t\t<r07></r07>\n\t\t\t<r08></r08>\n\t\t</prilPar30caOdpocetVydavkovSport>\n';
 
-  // prilPar30eVydavkyInvesticie
   xml += '\t\t<prilPar30eVydavkyInvesticie>\n';
-  for (let i=1;i<=10;i++) {
-    xml += '\t\t\t<r'+pad2(i)+'>\n';
-    xml += '\t\t\t\t<s01Od></s01Od>\n';
-    xml += '\t\t\t\t<s01Do></s01Do>\n';
-    xml += '\t\t\t\t<s02></s02>\n';
-    xml += '\t\t\t\t<s03></s03>\n';
-    xml += '\t\t\t\t<s04></s04>\n';
-    xml += '\t\t\t</r'+pad2(i)+'>\n';
-  }
-  xml += '\t\t\t<r11></r11>\n';
-  xml += '\t\t\t<r12></r12>\n';
-  xml += '\t\t</prilPar30eVydavkyInvesticie>\n';
+  for (let i=1;i<=10;i++) xml += '\t\t\t<r'+pad2(i)+'>\n\t\t\t\t<s01Od></s01Od>\n\t\t\t\t<s01Do></s01Do>\n\t\t\t\t<s02></s02>\n\t\t\t\t<s03></s03>\n\t\t\t\t<s04></s04>\n\t\t\t</r'+pad2(i)+'>\n';
+  xml += '\t\t\t<r11></r11>\n\t\t\t<r12></r12>\n\t\t</prilPar30eVydavkyInvesticie>\n';
 
-  // priloha
-  xml += '\t\t<priloha>\n';
-  xml += '\t\t\t<prijimatel>\n';
-  xml += '\t\t\t\t<poradoveCislo></poradoveCislo>\n';
-  xml += '\t\t\t\t<suma></suma>\n';
-  xml += '\t\t\t\t<ico></ico>\n';
-  xml += '\t\t\t\t<obchodneMeno>\n';
-  xml += '\t\t\t\t\t<riadok></riadok>\n';
-  xml += '\t\t\t\t\t<riadok></riadok>\n';
-  xml += '\t\t\t\t</obchodneMeno>\n';
-  xml += '\t\t\t</prijimatel>\n';
-  xml += '\t\t</priloha>\n';
+  xml += '\t\t<priloha>\n\t\t\t<prijimatel>\n\t\t\t\t<poradoveCislo></poradoveCislo>\n\t\t\t\t<suma></suma>\n\t\t\t\t<ico></ico>\n\t\t\t\t<obchodneMeno>\n\t\t\t\t\t<riadok></riadok>\n\t\t\t\t\t<riadok></riadok>\n\t\t\t\t</obchodneMeno>\n\t\t\t</prijimatel>\n\t\t</priloha>\n';
 
   xml += '\t</telo>\n';
   xml += '</dokument>';
@@ -828,6 +723,27 @@ function generateXml(header, rows, tabARows, tabBRows) {
 // =====================================================================
 let currentData = null;
 let generatedXml = '';
+const STEP_ORDER = ['upload','data','header','osoba','xml'];
+
+function goStep(name) {
+  // Hide all pages
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+
+  // Update steps
+  const idx = STEP_ORDER.indexOf(name);
+  document.querySelectorAll('.step').forEach((s, i) => {
+    s.classList.remove('active','done');
+    if (i < idx) s.classList.add('done');
+    else if (i === idx) s.classList.add('active');
+  });
+
+  // Render content
+  if (name === 'data' && currentData) renderDataTab();
+  if (name === 'header' && currentData) renderHeaderTab();
+  if (name === 'osoba' && currentData) renderOsobaTab();
+  if (name === 'xml') renderXmlTab();
+}
 
 function handleDragOver(e) {
   e.preventDefault();
@@ -855,8 +771,7 @@ function processFile(file) {
     try {
       const parsed = parseExcelFile(ev.target.result);
       currentData = parsed;
-      showTabs();
-      renderDataTab();
+      goStep('data');
     } catch(err) {
       alert('Chyba pri načítaní súboru: '+err.message);
     }
@@ -864,106 +779,187 @@ function processFile(file) {
   reader.readAsArrayBuffer(file);
 }
 
-function showTabs() {
-  document.getElementById('uploadArea').style.display = 'none';
-  document.getElementById('tabBar').style.display = 'flex';
-  document.getElementById('topActions').style.display = 'flex';
-
-  const tabs = document.querySelectorAll('.tab-btn');
-  tabs.forEach(t => {
-    t.addEventListener('click', (e) => switchTab(e.target.dataset.tab));
-  });
-
-  switchTab('data');
-}
-
-function switchTab(tabName) {
-  const allTabs = document.querySelectorAll('.tab-content');
-  allTabs.forEach(t => t.style.display = 'none');
-
-  const btns = document.querySelectorAll('.tab-btn');
-  btns.forEach(b => b.classList.remove('active'));
-
-  document.getElementById('tab-'+tabName).style.display = 'block';
-  document.querySelector('[data-tab="'+tabName+'"]').classList.add('active');
-
-  if (tabName === 'header') renderHeaderTab();
-  else if (tabName === 'osoba') renderOsobaTab();
-  else if (tabName === 'xml') renderXmlTab();
-}
-
 function renderDataTab() {
   const d = currentData;
-  let html = '<div class="card"><h3 class="section-title">Dáta z Excel súboru</h3>';
-  html += '<div class="grid-table">';
-  html += '<div class="th">Riadok</div><div class="th">Popis</div><div class="th th-right">Hodnota</div>';
+  let html = '';
 
-  for (const [rNum, xmlName] of ROW_MAP) {
-    const val = d.rows[rNum] ?? '';
-    const label = ROW_LABELS[rNum] || '';
-    if (val !== '') {
-      html += '<div class="td">'+rNum+'</div>';
-      html += '<div class="td">'+label+'</div>';
-      html += '<div class="td-num">'+esc(fmtDec(val))+'</div>';
-    }
+  // Company info summary
+  const h = d.header || {};
+  if (h.obchodneMeno) {
+    html += '<div class="section"><div class="section-header"><span class="section-tag">Info</span><span class="section-title">'+esc(h.obchodneMeno)+'</span></div>';
+    html += '<div class="section-body"><div class="grid grid-3">';
+    html += '<div class="field"><label>DIČ</label><input type="text" value="'+esc(h.dic||'')+'" readonly></div>';
+    html += '<div class="field"><label>IČO</label><input type="text" value="'+esc(h.ico||'')+'" readonly></div>';
+    html += '<div class="field"><label>Obdobie</label><input type="text" value="'+(h.zdanObdOd||'')+' – '+(h.zdanObdDo||'')+'" readonly></div>';
+    html += '</div></div></div>';
   }
 
-  html += '</div></div>';
-  document.getElementById('tab-data').innerHTML = html;
+  // Main rows table
+  html += '<div class="section"><div class="section-header"><span class="section-tag">Telo DP</span><span class="section-title">Riadky daňového priznania</span></div>';
+  html += '<div class="section-body"><table class="sum-table">';
+
+  let hasRows = false;
+  for (const [rNum, xmlName] of ROW_MAP) {
+    const val = d.rows[rNum] ?? '';
+    if (val === '' || val === null) continue;
+    hasRows = true;
+
+    // Section separator
+    if (SECTION_HEADERS[rNum]) {
+      html += '<tr class="section-sep"><td colspan="3">'+SECTION_HEADERS[rNum]+'</td></tr>';
+    }
+
+    const isBold = BOLD_ROWS.has(rNum);
+    const label = ROW_LABELS[rNum] || '';
+    html += '<tr'+(isBold?' class="total"':'')+'>';
+    html += '<td>r.'+rNum+'</td>';
+    html += '<td>'+esc(label)+'</td>';
+    html += '<td>'+esc(fmtDec(val))+'</td>';
+    html += '</tr>';
+  }
+
+  if (!hasRows) {
+    html += '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:40px">Žiadne riadky s hodnotou</td></tr>';
+  }
+
+  html += '</table></div></div>';
+
+  // Tab A if present
+  const tabAKeys = Object.keys(d.tabARows || {}).filter(k => {
+    const v = d.tabARows[k];
+    return v !== null && v !== undefined && v !== '' && v !== 0;
+  });
+  if (tabAKeys.length > 0) {
+    html += '<div class="section"><div class="section-header"><span class="section-tag">Tab A</span><span class="section-title">Položky zvyšujúce VH</span></div>';
+    html += '<div class="section-body"><table class="sum-table">';
+    for (const key of tabAKeys) {
+      const idx = key.replace('130/A','');
+      html += '<tr><td>A'+idx+'</td><td>Položka '+idx+'</td><td>'+esc(fmtDec(d.tabARows[key]))+'</td></tr>';
+    }
+    html += '</table></div></div>';
+  }
+
+  // Tab B if present
+  const tabBKeys = Object.keys(d.tabBRows || {}).filter(k => {
+    const v = d.tabBRows[k];
+    return v !== null && v !== undefined && v !== '' && v !== 0;
+  });
+  if (tabBKeys.length > 0) {
+    html += '<div class="section"><div class="section-header"><span class="section-tag">Tab B</span><span class="section-title">Odpisy</span></div>';
+    html += '<div class="section-body"><table class="sum-table">';
+    for (const key of tabBKeys) {
+      html += '<tr><td>'+key+'</td><td>'+esc(TAB_B_LABELS[key]||'')+'</td><td>'+esc(fmtDec(d.tabBRows[key]))+'</td></tr>';
+    }
+    html += '</table></div></div>';
+  }
+
+  document.getElementById('dataContent').innerHTML = html;
 }
 
 function renderHeaderTab() {
   const h = currentData.header || {};
-  let html = '<div class="card"><h3 class="section-title">Hlavička Daňového priznania</h3>';
-  html += '<div class="form-grid">';
-  html += '<div class="field"><label>DIC</label><input type="text" value="'+esc(h.dic||'')+'" readonly></div>';
+  let html = '';
+
+  // Identifikácia
+  html += '<div class="section"><div class="section-header"><span class="section-tag">I.</span><span class="section-title">Identifikácia daňovníka</span></div>';
+  html += '<div class="section-body"><div class="grid grid-2">';
+  html += '<div class="field"><label>DIČ</label><input type="text" value="'+esc(h.dic||'')+'" readonly></div>';
   html += '<div class="field"><label>IČO</label><input type="text" value="'+esc(h.ico||'')+'" readonly></div>';
-  html += '<div class="field"><label>Obchodné meno</label><input type="text" value="'+esc(h.obchodneMeno||'')+'" readonly></div>';
-  html += '<div class="field"><label>Sídlo - Ulica</label><input type="text" value="'+esc(h.sidloUlica||'')+'" readonly></div>';
+  html += '<div class="field" style="grid-column:1/-1"><label>Obchodné meno</label><input type="text" value="'+esc(h.obchodneMeno||'')+'" readonly></div>';
+  html += '<div class="field"><label>Právna forma</label><input type="text" value="'+esc(h.pravnaForma||'')+'" readonly></div>';
+  html += '<div class="field"><label>SK NACE</label><input type="text" value="'+esc((h.skNaceK1||'')+'.'+(h.skNaceK2||'')+'.'+(h.skNaceK3||''))+'" readonly></div>';
+  html += '</div></div></div>';
+
+  // Sídlo
+  html += '<div class="section"><div class="section-header"><span class="section-tag">Sídlo</span><span class="section-title">Adresa sídla</span></div>';
+  html += '<div class="section-body"><div class="grid grid-2">';
+  html += '<div class="field"><label>Ulica</label><input type="text" value="'+esc(h.sidloUlica||'')+'" readonly></div>';
   html += '<div class="field"><label>Číslo</label><input type="text" value="'+esc(h.sidloCislo||'')+'" readonly></div>';
   html += '<div class="field"><label>PSČ</label><input type="text" value="'+esc(h.sidloPsc||'')+'" readonly></div>';
   html += '<div class="field"><label>Obec</label><input type="text" value="'+esc(h.sidloObec||'')+'" readonly></div>';
   html += '<div class="field"><label>Štát</label><input type="text" value="'+esc(h.sidloStat||'')+'" readonly></div>';
   html += '<div class="field"><label>Telefón</label><input type="text" value="'+esc(h.sidloTel||'')+'" readonly></div>';
-  html += '<div class="field"><label>Email/Fax</label><input type="text" value="'+esc(h.sidloEmail||'')+'" readonly></div>';
-  html += '</div></div>';
-  document.getElementById('tab-header').innerHTML = html;
+  html += '<div class="field"><label>Email / Fax</label><input type="text" value="'+esc(h.sidloEmail||'')+'" readonly></div>';
+  html += '</div></div></div>';
+
+  // Zdaňovacie obdobie
+  html += '<div class="section"><div class="section-header"><span class="section-tag">Obdobie</span><span class="section-title">Zdaňovacie obdobie a typ DP</span></div>';
+  html += '<div class="section-body"><div class="grid grid-3">';
+  html += '<div class="field"><label>Od</label><input type="text" value="'+esc(h.zdanObdOd||'')+'" readonly></div>';
+  html += '<div class="field"><label>Do</label><input type="text" value="'+esc(h.zdanObdDo||'')+'" readonly></div>';
+  html += '<div class="field"><label>Typ DP</label><input type="text" value="Riadne" readonly></div>';
+  html += '</div></div></div>';
+
+  // Checkboxes
+  html += '<div class="section"><div class="section-header"><span class="section-tag">Flags</span><span class="section-title">Zaškrtávacie políčka</span></div>';
+  html += '<div class="section-body"><div class="check-grid">';
+  const checks = [
+    [h.mikrodanovnik, 'Mikrodaňovník §2w'],
+    [h.uplatnujemPar17, 'Uplatňujem §17'],
+    [h.ukoncujemPar17, 'Ukončujem uplatňovanie §17'],
+    [h.obmedzenie, 'Obmedzenie'],
+    [h.prepojenie, 'Prepojenie'],
+    [h.oslobodenie13ab, 'Oslobodenie §13a/§13b'],
+    [h.polovicna46b3, 'Polovičná výška dane §46b(3)'],
+    [h.neplatenie46b7, 'Neplatenie min. dane §46b(7)'],
+    [h.zapocitanie46b5, 'Započítanie min. dane §46b(5)'],
+  ];
+  for (const [val, label] of checks) {
+    html += '<div class="check-item"><div class="check-dot '+(val?'on':'off')+'"></div>'+esc(label)+'</div>';
+  }
+  html += '</div></div></div>';
+
+  document.getElementById('headerContent').innerHTML = html;
 }
 
 function renderOsobaTab() {
   const h = currentData.header || {};
-  let html = '<div class="card"><h3 class="section-title">Oprávnená osoba</h3>';
-  html += '<div class="form-grid">';
+  let html = '';
+
+  html += '<div class="section"><div class="section-header"><span class="section-tag">Osoba</span><span class="section-title">Oprávnená osoba</span></div>';
+  html += '<div class="section-body"><div class="grid grid-3">';
   html += '<div class="field"><label>Priezvisko</label><input type="text" value="'+esc(h.priezvisko||'')+'" readonly></div>';
   html += '<div class="field"><label>Meno</label><input type="text" value="'+esc(h.meno||'')+'" readonly></div>';
   html += '<div class="field"><label>Titul</label><input type="text" value="'+esc(h.titul||'')+'" readonly></div>';
   html += '<div class="field"><label>Titul za</label><input type="text" value="'+esc(h.titulZa||'')+'" readonly></div>';
   html += '<div class="field"><label>Postavenie</label><input type="text" value="'+esc(h.postavenie||'')+'" readonly></div>';
-  html += '<div class="field full"><label>Osobitné záznamy</label><textarea class="oz-area" readonly>'+esc(h.osobitneZaznamy||'')+'</textarea></div>';
-  html += '</div></div>';
-  document.getElementById('tab-osoba').innerHTML = html;
+  html += '</div></div></div>';
+
+  // Osobitné záznamy
+  html += '<div class="section"><div class="section-header"><span class="section-tag">Pozn.</span><span class="section-title">Osobitné záznamy</span></div>';
+  html += '<div class="section-body"><div class="field"><textarea readonly>'+esc(h.osobitneZaznamy||'(žiadne)')+'</textarea></div></div></div>';
+
+  // Prílohy a dátum
+  html += '<div class="section"><div class="section-header"><span class="section-tag">Príl.</span><span class="section-title">Prílohy a dátum</span></div>';
+  html += '<div class="section-body"><div class="grid grid-2">';
+  html += '<div class="field"><label>Počet príloh</label><input type="text" value="'+esc(h.pocetPriloh||'')+'" readonly></div>';
+  html += '<div class="field"><label>Dátum vyhlásenia</label><input type="text" value="'+esc(h.datumVyhlasenia||'')+'" readonly></div>';
+  html += '</div></div></div>';
+
+  document.getElementById('osobaContent').innerHTML = html;
 }
 
 function renderXmlTab() {
-  let html = '<div class="card">';
+  let html = '';
   if (generatedXml) {
-    html += '<div class="info-bar"><div class="label">XML náhľad:</div></div>';
-    html += '<div class="xml-pre">'+esc(generatedXml)+'</div>';
+    html += '<div class="section"><div class="section-header"><span class="section-tag">XML</span><span class="section-title">Vygenerovaný XML súbor</span></div>';
+    html += '<div class="section-body">';
+    html += '<div class="info-box">XML bolo úspešne vygenerované. Kliknite <strong>Stiahnuť XML súbor</strong> a importujte ho na portáli FS.</div>';
+    html += '<div class="xml-output">'+esc(generatedXml)+'</div>';
+    html += '</div></div>';
   } else {
-    html += '<p style="color:var(--muted)">Zatiaľ nebola vygenerovaná XML.</p>';
+    html += '<div class="section"><div class="section-body" style="text-align:center;padding:60px;color:var(--muted)">XML ešte nebolo vygenerované.</div></div>';
   }
-  html += '</div>';
-  document.getElementById('tab-xml').innerHTML = html;
+  document.getElementById('xmlContent').innerHTML = html;
 }
 
 function doGenerate() {
   if (!currentData) {
-    alert('Najprvprette súbor!');
+    alert('Najprv nahrajte súbor!');
     return;
   }
   generatedXml = generateXml(currentData.header, currentData.rows, currentData.tabARows, currentData.tabBRows);
-  renderXmlTab();
-  switchTab('xml');
+  goStep('xml');
 }
 
 function doDownload() {
@@ -981,6 +977,14 @@ function doDownload() {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+// Step click navigation
+document.querySelectorAll('.step').forEach(s => {
+  s.addEventListener('click', () => {
+    const target = s.dataset.step;
+    if (target === 'upload' || currentData) goStep(target);
+  });
+});
 </script>
 </body>
 </html>
