@@ -443,6 +443,16 @@ function fmtDate(v) {
     const m = String(v.getMonth()+1).padStart(2,'0');
     return d+'.'+m+'.'+v.getFullYear();
   }
+  // Excel sériový dátum (počet dní od 1900-01-01) -> dd.mm.yyyy
+  const n = typeof v === 'number' ? v : parseFloat(String(v).trim());
+  if (!isNaN(n) && n > 20000 && n < 100000) {
+    const date = new Date((n - 25569) * 86400 * 1000);
+    if (!isNaN(date.getTime())) {
+      const d = String(date.getDate()).padStart(2,'0');
+      const m = String(date.getMonth()+1).padStart(2,'0');
+      return d+'.'+m+'.'+date.getFullYear();
+    }
+  }
   return String(v);
 }
 
@@ -487,8 +497,8 @@ function generateXml(header, rows, tabARows, tabBRows) {
   xml += '\t\t</typDP>\n';
 
   xml += '\t\t<zdanovacieObdobie>\n';
-  xml += '\t\t\t'+xmlEl('od', h.zdanObdOd || '') + '\n';
-  xml += '\t\t\t'+xmlEl('do', h.zdanObdDo || '') + '\n';
+  xml += '\t\t\t'+xmlEl('od', fmtDate(h.zdanObdOd) || '') + '\n';
+  xml += '\t\t\t'+xmlEl('do', fmtDate(h.zdanObdDo) || '') + '\n';
   xml += '\t\t</zdanovacieObdobie>\n';
 
   xml += '\t\t<skNace>\n';
@@ -526,12 +536,13 @@ function generateXml(header, rows, tabARows, tabBRows) {
   xml += '\t\t<neplatenieMinDanePar46b7>'+String(h.neplatenie46b7 ? '1' : '0')+'</neplatenieMinDanePar46b7>\n';
   xml += '\t\t<zapocitanieMinDanePar46b5>'+String(h.zapocitanie46b5 ? '1' : '0')+'</zapocitanieMinDanePar46b5>\n';
 
+  const spStr = (v) => { const s = String(v || '').trim(); if (!s) return ''; const n = parseFloat(s.replace(',','.')); if (!isNaN(n) && s.length < 20) return ''; return s; };
   xml += '\t\t<stalaPrevadzkaren>\n';
-  xml += '\t\t\t<ulica>'+esc(h.spUlica || '')+'</ulica>\n';
-  xml += '\t\t\t<cislo>'+esc(h.spCislo || '')+'</cislo>\n';
-  xml += '\t\t\t<psc>'+esc(String(h.spPsc || '').replace(/\s/g,''))+'</psc>\n';
-  xml += '\t\t\t<obec>'+esc(h.spObec || '')+'</obec>\n';
-  xml += '\t\t\t<pocetSp>'+esc(h.spPocet || '')+'</pocetSp>\n';
+  xml += '\t\t\t<ulica>'+esc(spStr(h.spUlica))+'</ulica>\n';
+  xml += '\t\t\t<cislo>'+esc(spStr(h.spCislo))+'</cislo>\n';
+  xml += '\t\t\t<psc>'+esc(String(spStr(h.spPsc)).replace(/\s/g,''))+'</psc>\n';
+  xml += '\t\t\t<obec>'+esc(spStr(h.spObec))+'</obec>\n';
+  xml += '\t\t\t<pocetSp>'+esc(spStr(h.spPocet))+'</pocetSp>\n';
   xml += '\t\t</stalaPrevadzkaren>\n';
 
   xml += '\t</hlavicka>\n';
@@ -693,7 +704,7 @@ function generateXml(header, rows, tabARows, tabBRows) {
   xml += '\t\t</opravnenaOsoba>\n';
 
   xml += '\t\t<pocetPriloh>'+esc(h.pocetPriloh || '')+'</pocetPriloh>\n';
-  xml += '\t\t<datumVyhlasenia>'+esc(h.datumVyhlasenia || '')+'</datumVyhlasenia>\n';
+  xml += '\t\t<datumVyhlasenia>'+esc(fmtDate(h.datumVyhlasenia) || '')+'</datumVyhlasenia>\n';
 
   xml += '\t\t<platenieDanePar17f>\n\t\t\t<ziadam17f>0</ziadam17f>\n';
   for (let i=0;i<5;i++) xml += '\t\t\t<splatka>\n\t\t\t\t<datumSplat></datumSplat>\n\t\t\t\t<suma></suma>\n\t\t\t</splatka>\n';
@@ -980,7 +991,8 @@ function doDownload() {
     let nazov = String(currentData.header.obchodneMeno || '').replace(/[\s\/\\:*?"<>|]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') || 'DPPO';
     nazov = nazov.replace(/_\d+$/, ''); // iba Názov Firmy, bez _46022 alebo iného čísla za názvom
     const datumDo = currentData.header.zdanObdDo || currentData.header.zdanObdOd || '';
-    const rok = datumDo ? (datumDo.split('.').pop() || '').trim() : '';
+    let rok = datumDo ? (datumDo.split('.').pop() || '').trim() : '';
+    if (!/^\d{4}$/.test(rok)) rok = ''; // iba 4-ciferný rok (nie Excel serial 46022)
     fileName = (nazov ? nazov + '_' : '') + 'DPPO_' + (rok || new Date().getFullYear());
   }
   const blob = new Blob([generatedXml], {type:'text/xml'});
