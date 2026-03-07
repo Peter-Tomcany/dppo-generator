@@ -472,7 +472,7 @@ function generateXml(header, rows, tabARows, tabBRows) {
   tabBRows = tabBRows || {};
 
   let xml = '<?xml version="1.0" encoding="utf-8"?>\n';
-  xml += '<dokument xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="dppo2025_v2.xsd">\n';
+  xml += '<dokument>\n';
 
   // HLAVICKA
   xml += '\t<hlavicka>\n';
@@ -972,11 +972,18 @@ function doDownload() {
     alert('Najprv vygenerujte XML!');
     return;
   }
+  let fileName = 'DPPO_2025';
+  if (currentData && currentData.header) {
+    const nazov = String(currentData.header.obchodneMeno || '').replace(/[\s\/\\:*?"<>|]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') || 'DPPO';
+    const datumDo = currentData.header.zdanObdDo || currentData.header.zdanObdOd || '';
+    const rok = datumDo ? (datumDo.split('.').pop() || '').trim() : '';
+    fileName = (nazov ? nazov + '_' : '') + 'DPPO_' + (rok || new Date().getFullYear());
+  }
   const blob = new Blob([generatedXml], {type:'text/xml'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'DPPO_2025.xml';
+  a.download = fileName + '.xml';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
