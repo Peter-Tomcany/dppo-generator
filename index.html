@@ -221,7 +221,7 @@ label.btn input[type="file"]{display:none}
           </label>
         </div>
         <div class="info-box" style="margin-top:16px">
-          Aplikácia načíta údaje z hárkov <strong>Základné údaje</strong>, <strong>Pomocné výpočty</strong> a buď jeden zdroj <strong>DPPO export</strong> (Tab F + všetky riadky DP), alebo <strong>Pomôcka k DP</strong> + Tab F z ZU.
+          Ak je v súbore hárok <strong>DPPO export</strong>, generátor z neho berie všetko (Tab F, prehľad ZU, oprávnená osoba, Tab B, riadky DP). Ak hárok chýba, načíta sa zo <strong>Základné údaje</strong>, <strong>Pomôcka k DP</strong> a <strong>Pomocné výpočty</strong>; Tab F môže byť prázdna, ak na ZU nie sú v bunkách C18/C20 čísla.
           Všetky polia sú len na čítanie — dáta sa menia výhradne v Exceli.
         </div>
       </div>
@@ -462,7 +462,7 @@ function parseExcelFile(arrayBuffer) {
     }
   }
   if (wb.SheetNames.indexOf('DPPO export') >= 0) {
-    readDpRowsFromSheet(wb.Sheets['DPPO export'], 4);  // Tab F hore, od riadku 5 je 1:1 Pomôcka k DP
+    readDpRowsFromSheet(wb.Sheets['DPPO export'], 25);  // od riadku 26 mapovanie DP (hore Tab F, prehľad ZU, Oprávnená osoba, Tab B)
   } else if (wb.SheetNames.indexOf('Pomôcka k DP') >= 0) {
     readDpRowsFromSheet(wb.Sheets['Pomôcka k DP'], 0);
   }
@@ -487,6 +487,18 @@ function parseExcelFile(arrayBuffer) {
     var exportNaklady = parseNumFromCell(sheetExport, 'B2');
     if (exportVynosy !== null) tabFVynosy = exportVynosy;
     if (exportNaklady !== null) tabFNaklady = exportNaklady;
+    var ov = (c) => sheetExport[c] && (sheetExport[c].v !== undefined && sheetExport[c].v !== null) ? sheetExport[c].v : (sheetExport[c] && sheetExport[c].w ? sheetExport[c].w : '');
+    result.header.priezvisko = String(ov('B12') || result.header.priezvisko || '').trim();
+    result.header.meno = String(ov('B13') || result.header.meno || '').trim();
+    result.header.titul = String(ov('B14') || result.header.titul || '').trim();
+    result.header.titulZa = String(ov('B15') || result.header.titulZa || '').trim();
+    result.header.postavenie = String(ov('B16') || result.header.postavenie || '').trim();
+    var tbCells = ['B18','B19','B20','B21','B22','B23'];
+    var tbKeys = ['B1','B2','B3','B4','B5','B6'];
+    for (var t = 0; t < 6; t++) {
+      var v = parseNumFromCell(sheetExport, tbCells[t]);
+      if (v !== null) result.tabBRows[tbKeys[t]] = v;
+    }
   }
   // do XML idú len čísla
   function toNum(x) {
