@@ -221,7 +221,7 @@ label.btn input[type="file"]{display:none}
           </label>
         </div>
         <div class="info-box" style="margin-top:16px">
-          Aplikácia načíta údaje z hárkov <strong>Základné údaje</strong>, <strong>Pomôcka k DP</strong> a <strong>Pomocné výpočty</strong>.
+          Aplikácia načíta údaje z hárkov <strong>Základné údaje</strong>, <strong>Pomôcka k DP</strong> a <strong>Pomocné výpočty</strong>. Tabuľka F sa berie z buniek C18 (výnosy) a C20 (náklady) na ZU, alebo z hárka <strong>DPPO export</strong> (B1, B2).
           Všetky polia sú len na čítanie — dáta sa menia výhradne v Exceli.
         </div>
       </div>
@@ -423,8 +423,8 @@ function parseExcelFile(arrayBuffer) {
 
     const zdanPrijmy = cv('C19');
     if (zdanPrijmy && typeof zdanPrijmy === 'number') result.rows[560] = zdanPrijmy;
-    result.header.tabF_vynosy = cv('E18');
-    result.header.tabF_naklady = cv('E20');
+    result.header.tabF_vynosy = cv('C18') ?? cv('E18') ?? cv('D18') ?? '';
+    result.header.tabF_naklady = cv('C20') ?? cv('E20') ?? cv('D20') ?? '';
   }
 
   // --- Pomôcka k DP ---
@@ -458,8 +458,16 @@ function parseExcelFile(arrayBuffer) {
     }
   }
 
-  if (result.header.tabF_vynosy !== undefined && result.header.tabF_vynosy !== '' && result.header.tabF_vynosy !== null) result.rows[560] = result.header.tabF_vynosy;
-  if (result.header.tabF_naklady !== undefined && result.header.tabF_naklady !== '' && result.header.tabF_naklady !== null) result.rows[561] = result.header.tabF_naklady;
+  var tabFVynosy = result.header.tabF_vynosy;
+  var tabFNaklady = result.header.tabF_naklady;
+  var sheetExport = wb.SheetNames.indexOf('DPPO export') >= 0 ? wb.Sheets['DPPO export'] : (wb.SheetNames.indexOf('Tab F') >= 0 ? wb.Sheets['Tab F'] : null);
+  if (sheetExport) {
+    var v = (c) => sheetExport[c] ? sheetExport[c].v : '';
+    if (v('B1') !== undefined && v('B1') !== '' && v('B1') !== null) tabFVynosy = v('B1');
+    if (v('B2') !== undefined && v('B2') !== '' && v('B2') !== null) tabFNaklady = v('B2');
+  }
+  if (tabFVynosy !== undefined && tabFVynosy !== '' && tabFVynosy !== null) result.rows[560] = tabFVynosy;
+  if (tabFNaklady !== undefined && tabFNaklady !== '' && tabFNaklady !== null) result.rows[561] = tabFNaklady;
 
   return result;
 }
