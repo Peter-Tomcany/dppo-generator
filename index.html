@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DPPO 2025 – Generátor XML | Helwitax</title>
+<title>DPPO 2025 – Generátor XML E-Form | Helwitax</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root {
@@ -123,7 +123,7 @@ textarea.oz-area {
 
 <div class="topbar">
   <div>
-    <div class="topbar-brand">Helwitax · Generátor XML</div>
+    <div class="topbar-brand">Helwitax · Generátor XML E-Form</div>
     <h1>Daňové priznanie PO <span>2025</span></h1>
   </div>
   <div class="topbar-actions" id="topActions" style="display:none">
@@ -312,186 +312,1259 @@ function fmtDate(v) {
 }
 
 // =====================================================================
-// XML GENERATOR
+// XML GENERATOR – E-FORM FORMAT
 // =====================================================================
 function fmtDec(v) {
   if (v===null||v===undefined||v===''||v===0) return '';
   const n = typeof v==='number' ? v : parseFloat(String(v).replace(',','.'));
   return isNaN(n) ? '' : n.toFixed(2);
 }
+
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
 function xmlEl(tag,val) { return '<'+tag+'>'+esc(val)+'</'+tag+'>'; }
 function xmlDec(tag,val) { return '<'+tag+'>'+esc(fmtDec(val))+'</'+tag+'>'; }
-// xmlDecZ outputs 0.00 when value is 0 (for r900 etc.)
-function xmlDecZ(tag,val) {
-  const v = (val===null||val===undefined||val==='') ? '' : val;
-  if (v==='' ) return '<'+tag+'></'+tag+'>';
-  const n = typeof v==='number' ? v : parseFloat(String(v).replace(',','.'));
-  return '<'+tag+'>'+(isNaN(n)?'':n.toFixed(2))+'</'+tag+'>';
-}
 
 function generateXml(header, rows, tabARows, tabBRows) {
   const h = header;
   const rv = (n) => rows[n] ?? '';
-  const t2s = () => '<s1></s1><s2></s2>';
   const pad2 = (i) => String(i).padStart(2,'0');
   tabBRows = tabBRows || {};
 
-  let teloRows = '';
-  for (const [rNum,xmlName] of ROW_MAP) {
-    if (rNum===610) continue;
-    // r550 = sadzba dane as integer (10, 21, 24), not decimal
-    if (rNum===550) {
+  // Helper to format checkbox (0 for unchecked, 1 for checked)
+  const chk = (v) => (v ? '1' : '');
+
+  // Build main rows (r100 through r1110)
+  let mainRows = '';
+  for (const [rNum, xmlName] of ROW_MAP) {
+    if (rNum === 610) continue;
+    if (rNum === 550) {
+      // r550 = sadzba dane as integer (10, 21, 24), not decimal
       const s = rv(550);
       let sadzba = '';
       if (s!==''&&s!==null&&s!==undefined) {
         const n = typeof s==='number' ? s : parseFloat(String(s).replace(',','.'));
         if (!isNaN(n)) sadzba = n < 1 ? String(Math.round(n*100)) : String(Math.round(n));
       }
-      teloRows += '<r550>'+esc(sadzba)+'</r550>\n';
+      mainRows += '<r550>'+esc(sadzba)+'</r550>\n';
+    } else {
+      mainRows += xmlDec(xmlName, rv(rNum)) + '\n';
     }
-    // r900 = outputs 0.00 when zero (not empty)
-    else if (rNum===900) { teloRows += xmlDecZ('r900', rv(900)) + '\n'; }
-    else { teloRows += xmlDec(xmlName, rv(rNum)) + '\n'; }
-  }
-  const r610 = '<r610><text></text><suma>'+esc(fmtDec(rv(610)))+'</suma></r610>\n';
-  teloRows = teloRows.replace('</r600>\n', '</r600>\n'+r610);
-  teloRows += xmlEl('ddpDatum','') + '\n';
-  [1120,1130,1140,1150,1160,1170,1180,1190,1191,1192].forEach(r => { teloRows += xmlDec('r'+r,'') + '\n'; });
-
-  let tabA = '<tabA>\n';
-  for (let i=1;i<=17;i++) tabA += xmlDec('r'+pad2(i), tabARows['130/A'+i]??'') + '\n';
-  tabA += '</tabA>\n';
-
-  let tabB = '<tabB>\n';
-  for (let i=1;i<=6;i++) tabB += xmlDec('r'+pad2(i), tabBRows['B'+i]??'') + '\n';
-  tabB += '</tabB>\n';
-
-  function emptyTab6(name) {
-    let s='<'+name+'>\n';
-    for (let i=1;i<=6;i++) s+=xmlDec('r'+pad2(i),'')+'\n';
-    return s+'</'+name+'>\n';
   }
 
-  let tabD='<tabD>\n<tabDs01>'+xmlDec('r01','')+xmlDec('r02','')+xmlDec('r03','')+'</tabDs01>\n';
-  for (let i=2;i<=8;i++) tabD+='<tabDs'+pad2(i)+'>'+xmlEl('datumOd','')+xmlEl('datumDo','')+xmlDec('r01','')+xmlDec('r02','')+xmlDec('r03','')+'</tabDs'+pad2(i)+'>\n';
-  tabD+='<tabDs09>'+xmlDec('r01','')+xmlDec('r02','')+xmlDec('r03','')+'</tabDs09>\n</tabD>\n';
+  // Build Tab A rows
+  let tabAXml = '';
+  for (let i=1;i<=17;i++) {
+    const key = '130/A'+i;
+    tabAXml += '<r'+pad2(i)+'>'+esc(fmtDec(tabARows[key]??''))+'</r'+pad2(i)+'>\n';
+  }
 
-  let tabE='<tabE>\n'; for (let i=1;i<=10;i++) tabE+=xmlDec('r'+pad2(i),'')+'\n'; tabE+='</tabE>\n';
-  let tabF='<tabF>\n'; for (let i=1;i<=3;i++) tabF+=xmlDec('r'+pad2(i),'')+'\n'; tabF+='</tabF>\n';
+  // Build Tab B rows
+  let tabBXml = '';
+  for (let i=1;i<=6;i++) {
+    const key = 'B'+i;
+    tabBXml += '<r'+pad2(i)+'>'+esc(fmtDec(tabBRows[key]??''))+'</r'+pad2(i)+'>\n';
+  }
 
-  function tabG(name,cnt) { let s='<'+name+'>\n'; for (let i=1;i<=cnt;i++) s+=xmlDec('r'+pad2(i),'')+'\n'; return s+'</'+name+'>\n'; }
+  // Build the full e-form XML matching form.622.xml structure
+  let xml = `<?xml version="1.0" encoding="UTF-8"?><DPPO2025 xsi="http://www.w3.org/2001/XMLSchema-instance">
+<DPPO2022_DanovePriznanie_PO_1>
+<DPPO2022_DanovePriznanie_PO_1panel1>
+</DPPO2022_DanovePriznanie_PO_1panel1>
+<DPPO2022_DanovePriznanie_PO_1panel3>
+<DPPO2012_DanovePriznanie_PO_1gbDodatocneDanovePriznanie>
+<group1></group1>
+</DPPO2012_DanovePriznanie_PO_1gbDodatocneDanovePriznanie>
+<SectionZaObdobie>
+<zdanobdod>${esc(h.zdanObdOd)}</zdanobdod>
+<zdanobddo>${esc(h.zdanObdDo)}</zdanobddo>
+</SectionZaObdobie>
+<IcoDicPF>
+<dic01>${esc(h.dic)}</dic01>
+<ico02>${esc(h.ico)}</ico02>
+<pravnaforma03>${esc(h.pravnaForma)}</pravnaforma03>
+<sknace04>${esc(h.skNaceK1+h.skNaceK2+h.skNaceK3)}</sknace04>
+<skNACE>
+<sknace04hlavnaprevaznacinnost>${esc(h.skNaceCinnost)}</sknace04hlavnaprevaznacinnost>
+</skNACE>
+</IcoDicPF>
+</DPPO2022_DanovePriznanie_PO_1panel3>
+<DPPO2012_DanovePriznanie_PO_1panel4>
+<DPPO2012_DanovePriznanie_PO_1panel5>
+<obchodnemeno05>${esc(h.obchodneMeno)}</obchodnemeno05>
+</DPPO2012_DanovePriznanie_PO_1panel5>
+<DPPO2012_DanovePriznanie_PO_1panel6>
+<prva_sekcia_>
+<ulica06sidlo>${esc(h.sidloUlica)}</ulica06sidlo>
+<cislo07sidlo>${esc(h.sidloCislo)}</cislo07sidlo>
+</prva_sekcia_>
+<druha_sekcia>
+<psc08sidlo>${esc(String(h.sidloPsc).replace(/\s/g,''))}</psc08sidlo>
+<obec09sidlo>${esc(h.sidloObec)}</obec09sidlo>
+<stat10sidlo>${esc(h.sidloStat)}</stat10sidlo>
+</druha_sekcia>
+<tretia_sekcia>
+<telefon11sidlo>${esc(h.sidloTel)}</telefon11sidlo>
+<emailfax12sidlo>${esc(h.sidloEmail)}</emailfax12sidlo>
+</tretia_sekcia>
+</DPPO2012_DanovePriznanie_PO_1panel6>
+<sek_uplatnujem>
+<uplatnenie>${chk(h.uplatnujemPar17)}</uplatnenie>
+<ukoncenie>${chk(h.ukoncujemPar17)}</ukoncenie>
+<nerezident>${chk(h.obmedzenie)}</nerezident>
+<prepojenie>${chk(h.prepojenie)}</prepojenie>
+<oslobodenie>${chk(h.oslobodenie13ab)}</oslobodenie>
+<mikrodanovnik>${chk(h.mikrodanovnik)}</mikrodanovnik>
+<polovicna>${chk(h.polovicna46b3)}</polovicna>
+<neplateniemin>${chk(h.neplatenie46b7)}</neplateniemin>
+<zapocitaniemin>${chk(h.zapocitanie46b5)}</zapocitaniemin>
+</sek_uplatnujem>
+<DPPO2012_DanovePriznanie_PO_1panel19>
+<ulica13stalaprevadzkaren>${esc(h.spUlica)}</ulica13stalaprevadzkaren>
+<cislo14stalaprevadzkaren>${esc(h.spCislo)}</cislo14stalaprevadzkaren>
+</DPPO2012_DanovePriznanie_PO_1panel19>
+<sek_prva>
+<psc15stalaprevadzkaren>${esc(String(h.spPsc).replace(/\s/g,''))}</psc15stalaprevadzkaren>
+<obec16stalaprevadzkaren>${esc(h.spObec)}</obec16stalaprevadzkaren>
+<pocetsp17stalaprevadzkaren>${esc(h.spPocet)}</pocetsp17stalaprevadzkaren>
+</sek_prva>
+<sek_male_strana1_edane>
+</sek_male_strana1_edane>
+</DPPO2012_DanovePriznanie_PO_1panel4>
+</DPPO2022_DanovePriznanie_PO_1>
+<DPPO2022_DanovePriznanie_PO_2>
+<DPPO2012_DanovePriznanie_PO_2panel3>
+<DPPO2012_DanovePriznanie_PO_2panel3_2_lblPopisPolozky>
+${xmlDec('r100', rv(100))}
+</DPPO2012_DanovePriznanie_PO_2panel3_2_lblPopisPolozky>
+</DPPO2012_DanovePriznanie_PO_2panel3>
+<DPPO2012_DanovePriznanie_PO_2panel6>
+<DPPO2012_DanovePriznanie_PO_2panel11>
+${xmlDec('r110', rv(110))}
+</DPPO2012_DanovePriznanie_PO_2panel11>
+<DPPO2012_DanovePriznanie_PO_2panel10>
+${xmlDec('r130', rv(130))}
+</DPPO2012_DanovePriznanie_PO_2panel10>
+<DPPO2012_DanovePriznanie_PO_2panel15>
+${xmlDec('r140', rv(140))}
+</DPPO2012_DanovePriznanie_PO_2panel15>
+<DPPO2012_DanovePriznanie_PO_2panel30>
+${xmlDec('r150', rv(150))}
+</DPPO2012_DanovePriznanie_PO_2panel30>
+<DPPO2012_DanovePriznanie_PO_2panel36>
+${xmlDec('r170', rv(170))}
+</DPPO2012_DanovePriznanie_PO_2panel36>
+<DPPO2012_DanovePriznanie_PO_2panel38>
+${xmlDec('r180', rv(180))}
+</DPPO2012_DanovePriznanie_PO_2panel38>
+<DPPO2012_DanovePriznanie_PO_2panel42>
+${xmlDec('r200', rv(200))}
+</DPPO2012_DanovePriznanie_PO_2panel42>
+</DPPO2012_DanovePriznanie_PO_2panel6>
+<DPPO2012_DanovePriznanie_PO_2panel17>
+<DPPO2012_DanovePriznanie_PO_2panel52>
+${xmlDec('r210', rv(210))}
+</DPPO2012_DanovePriznanie_PO_2panel52>
+<DPPO2012_DanovePriznanie_PO_2panel49>
+${xmlDec('r220', rv(220))}
+</DPPO2012_DanovePriznanie_PO_2panel49>
+<DPPO2012_DanovePriznanie_PO_2panel47>
+${xmlDec('r230', rv(230))}
+</DPPO2012_DanovePriznanie_PO_2panel47>
+<DPPO2012_DanovePriznanie_PO_2panel45>
+${xmlDec('r240', rv(240))}
+</DPPO2012_DanovePriznanie_PO_2panel45>
+<DPPO2012_DanovePriznanie_PO_2panel29>
+${xmlDec('r250', rv(250))}
+</DPPO2012_DanovePriznanie_PO_2panel29>
+<DPPO2012_DanovePriznanie_PO_2panel27>
+${xmlDec('r260', rv(260))}
+</DPPO2012_DanovePriznanie_PO_2panel27>
+<DPPO2012_DanovePriznanie_PO_2panel25>
+${xmlDec('r270', rv(270))}
+</DPPO2012_DanovePriznanie_PO_2panel25>
+<DPPO2012_DanovePriznanie_PO_2panel23>
+${xmlDec('r280', rv(280))}
+</DPPO2012_DanovePriznanie_PO_2panel23>
+<DPPO2012_DanovePriznanie_PO_2panel21>
+${xmlDec('r290', rv(290))}
+</DPPO2012_DanovePriznanie_PO_2panel21>
+<DPPO2012_DanovePriznanie_PO_2panel18>
+${xmlDec('r300', rv(300))}
+</DPPO2012_DanovePriznanie_PO_2panel18>
+</DPPO2012_DanovePriznanie_PO_2panel17>
+<secZakladDane_DanovaStrata>
+<secRiadok_301>
+${xmlDec('r301', rv(301))}
+</secRiadok_301>
+<secRiadok_302>
+${xmlDec('r302', rv(302))}
+</secRiadok_302>
+<secRiadok_303>
+${xmlDec('r303', rv(303))}
+</secRiadok_303>
+<secRiadok_304>
+${xmlDec('r304', rv(304))}
+</secRiadok_304>
+<secRiadok_305>
+${xmlDec('r305', rv(305))}
+</secRiadok_305>
+<secRiadok_306>
+${xmlDec('r306', rv(306))}
+</secRiadok_306>
+<secRiadok_307>
+${xmlDec('r307', rv(307))}
+</secRiadok_307>
+<secRiadok_308>
+${xmlDec('r308', rv(308))}
+</secRiadok_308>
+</secZakladDane_DanovaStrata>
+</DPPO2022_DanovePriznanie_PO_2>
+<DPPO2022_DanovePriznanie_PO_3>
+<DPPO2012_DanovePriznanie_PO_2panel54>
+<DPPO2012_DanovePriznanie_PO_2panel74>
+${xmlDec('r310', rv(310))}
+</DPPO2012_DanovePriznanie_PO_2panel74>
+<DPPO2012_DanovePriznanie_PO_2panel71>
+${xmlDec('r320', rv(320))}
+</DPPO2012_DanovePriznanie_PO_2panel71>
+<DPPO2012_DanovePriznanie_PO_2panel57>
+${xmlDec('r330', rv(330))}
+</DPPO2012_DanovePriznanie_PO_2panel57>
+<DPPO2012_DanovePriznanie_PO_2panel55>
+${xmlDec('r400', rv(400))}
+</DPPO2012_DanovePriznanie_PO_2panel55>
+</DPPO2012_DanovePriznanie_PO_2panel54>
+<DPPO2012_DanovePriznanie_PO_3panel6>
+<DPPO2012_DanovePriznanie_PO_3panel32>
+${xmlDec('r410', rv(410))}
+</DPPO2012_DanovePriznanie_PO_3panel32>
+<sek_33>
+${xmlDec('r500', rv(500))}
+</sek_33>
+</DPPO2012_DanovePriznanie_PO_3panel6>
+<secZnizenieZakladu>
+<secRiadok_501>
+${xmlDec('r501', rv(501))}
+</secRiadok_501>
+<secRiadok_502>
+${xmlDec('r502', rv(502))}
+</secRiadok_502>
+<secRiadok_503>
+${xmlDec('r503', rv(503))}
+</secRiadok_503>
+<secRiadok_510>
+${xmlDec('r510', rv(510))}
+</secRiadok_510>
+</secZnizenieZakladu>
+<DPPO2012_DanovePriznanie_PO_3panel3>
+<secRiadok_550>
+<r550>${esc((() => {
+  const s = rv(550);
+  let sadzba = '';
+  if (s!==''&&s!==null&&s!==undefined) {
+    const n = typeof s==='number' ? s : parseFloat(String(s).replace(',','.'));
+    if (!isNaN(n)) sadzba = n < 1 ? String(Math.round(n*100)) : String(Math.round(n));
+  }
+  return sadzba;
+})())}</r550>
+</secRiadok_550>
+<secRiadok_560>
+${xmlDec('r560', rv(560))}
+</secRiadok_560>
+<secRiadok_600>
+${xmlDec('r600', rv(600))}
+</secRiadok_600>
+</DPPO2012_DanovePriznanie_PO_3panel3>
+<DPPO2012_DanovePriznanie_PO_3panel11>
+<DPPO2012_DanovePriznanie_PO_3panel15>
+<r610ulavapodla></r610ulavapodla>
+${xmlDec('r610', rv(610))}
+</DPPO2012_DanovePriznanie_PO_3panel15>
+<sek_DaNzn>
+${xmlDec('r700', rv(700))}
+</sek_DaNzn>
+</DPPO2012_DanovePriznanie_PO_3panel11>
+<DPPO2012_DanovePriznanie_PO_3panel30>
+<secRiadok_710>
+${xmlDec('r710', rv(710))}
+</secRiadok_710>
+<secRiadok_800>
+${xmlDec('r800', rv(800))}
+</secRiadok_800>
+</DPPO2012_DanovePriznanie_PO_3panel30>
+</DPPO2022_DanovePriznanie_PO_3>
+<DPPO2022_DanovePriznanie_PO_4>
+<DPPO2022_DanovePriznanie_PO_4panel810>
+<secRiadok_810>
+${xmlDec('r810', rv(810))}
+</secRiadok_810>
+<secRiadok_820>
+${xmlDec('r820', rv(820))}
+</secRiadok_820>
+<secRiadok_830>
+${xmlDec('r830', rv(830))}
+</secRiadok_830>
+<secRiadok_840>
+${xmlDec('r840', rv(840))}
+</secRiadok_840>
+<secRiadok_900>
+${xmlDec('r900', rv(900))}
+</secRiadok_900>
+</DPPO2022_DanovePriznanie_PO_4panel810>
+<DPPO2022_DanovePriznanie_PO_4panel910>
+<secRiadok_910>
+${xmlDec('r910', rv(910))}
+</secRiadok_910>
+<secRiadok_920>
+${xmlDec('r920', rv(920))}
+</secRiadok_920>
+<secRiadok_1000>
+${xmlDec('r1000', rv(1000))}
+</secRiadok_1000>
+<DPPO2024_DanovePriznanie_PO_4panel_pozn2a>
+</DPPO2024_DanovePriznanie_PO_4panel_pozn2a>
+</DPPO2022_DanovePriznanie_PO_4panel910>
+<DPPO2024_DanovePriznanie_PO_4panel1010>
+<secRiadok_1010>
+${xmlDec('r1010', rv(1010))}
+</secRiadok_1010>
+<secRiadok_1020>
+${xmlDec('r1020', rv(1020))}
+</secRiadok_1020>
+<sec1030>
+${xmlDec('r1030', rv(1030))}
+</sec1030>
+<secRiadok_1040>
+${xmlDec('r1040', rv(1040))}
+</secRiadok_1040>
+<secRiadok_1050>
+${xmlDec('r1050', rv(1050))}
+</secRiadok_1050>
+<secRiadok_1060>
+${xmlDec('r1060', rv(1060))}
+</secRiadok_1060>
+<secRiadok_1061>
+${xmlDec('r1061', rv(1061))}
+</secRiadok_1061>
+<secRiadok_1062>
+${xmlDec('r1062', rv(1062))}
+</secRiadok_1062>
+<secRiadok_1070>
+${xmlDec('r1070', rv(1070))}
+</secRiadok_1070>
+<secRiadok_1071>
+${xmlDec('r1071', rv(1071))}
+</secRiadok_1071>
+<secRiadok_1080>
+${xmlDec('r1080', rv(1080))}
+</secRiadok_1080>
+<secRiadok_1090>
+${xmlDec('r1090', rv(1090))}
+</secRiadok_1090>
+<secRiadok_1100>
+${xmlDec('r1100', rv(1100))}
+</secRiadok_1100>
+<secRiadok_1101>
+${xmlDec('r1101', rv(1101))}
+</secRiadok_1101>
+<DPPO2012_DanovePriznanie_PO_3panel24>
+</DPPO2012_DanovePriznanie_PO_3panel24>
+</DPPO2024_DanovePriznanie_PO_4panel1010>
+<DPPO2012_DanovePriznanie_PO_3panel38>
+${xmlDec('r1110', rv(1110))}
+</DPPO2012_DanovePriznanie_PO_3panel38>
+<DPPO2012_DanovePriznanie_PO_3panel39>
+<DPPO2012_DanovePriznanie_PO_3panel57>
+<datumddp></datumddp>
+</DPPO2012_DanovePriznanie_PO_3panel57>
+<secRiadok_1120>
+<r1120></r1120>
+</secRiadok_1120>
+<secRiadok_1130>
+<r1130></r1130>
+</secRiadok_1130>
+<secRiadok_1140>
+<r1140></r1140>
+</secRiadok_1140>
+<secRiadok_1150>
+<r1150></r1150>
+</secRiadok_1150>
+<secRiadok_1160>
+<r1160></r1160>
+</secRiadok_1160>
+<secRiadok_1170>
+<r1170></r1170>
+</secRiadok_1170>
+<secRiadok_1180>
+<r1180></r1180>
+</secRiadok_1180>
+<secRiadok_1190>
+<r1190></r1190>
+</secRiadok_1190>
+<secRiadok_1191>
+<r1191></r1191>
+</secRiadok_1191>
+<secRiadok_1192>
+<r1192></r1192>
+</secRiadok_1192>
+</DPPO2012_DanovePriznanie_PO_3panel39>
+</DPPO2022_DanovePriznanie_PO_4>
+<DPPO2012_DanovePriznanie_PO_4>
+<DPPO2012_DanovePriznanie_PO_4panel39>
+<secTabA_Riadok_1>
+${xmlDec('r01taba', tabARows['130/A1']??'')}
+</secTabA_Riadok_1>
+<secTabA_Riadok_2>
+${xmlDec('r02taba', tabARows['130/A2']??'')}
+</secTabA_Riadok_2>
+<secTabA_Riadok_3>
+${xmlDec('r03taba', tabARows['130/A3']??'')}
+</secTabA_Riadok_3>
+<secTabA_Riadok_4>
+${xmlDec('r04taba', tabARows['130/A4']??'')}
+</secTabA_Riadok_4>
+<secTabA_Riadok_5>
+${xmlDec('r05taba', tabARows['130/A5']??'')}
+</secTabA_Riadok_5>
+<secTabA_Riadok_6>
+${xmlDec('r06taba', tabARows['130/A6']??'')}
+</secTabA_Riadok_6>
+<secTabA_Riadok_7>
+${xmlDec('r07taba', tabARows['130/A7']??'')}
+</secTabA_Riadok_7>
+<secTabA_Riadok_8>
+${xmlDec('r08taba', tabARows['130/A8']??'')}
+</secTabA_Riadok_8>
+<secTabA_Riadok_9>
+${xmlDec('r09taba', tabARows['130/A9']??'')}
+</secTabA_Riadok_9>
+<secTabA_Riadok_10>
+${xmlDec('r10taba', tabARows['130/A10']??'')}
+</secTabA_Riadok_10>
+<secTabA_Riadok_11>
+${xmlDec('r11taba', tabARows['130/A11']??'')}
+</secTabA_Riadok_11>
+<secTabA_Riadok_12>
+${xmlDec('r12taba', tabARows['130/A12']??'')}
+</secTabA_Riadok_12>
+<secTabA_Riadok_13>
+${xmlDec('r13taba', tabARows['130/A13']??'')}
+</secTabA_Riadok_13>
+<secTabA_Riadok_14>
+${xmlDec('r14taba', tabARows['130/A14']??'')}
+</secTabA_Riadok_14>
+<secTabA_Riadok_15>
+${xmlDec('r15taba', tabARows['130/A15']??'')}
+</secTabA_Riadok_15>
+<secTabA_Riadok_16>
+${xmlDec('r16taba', tabARows['130/A16']??'')}
+</secTabA_Riadok_16>
+<secTabA_Riadok_17>
+${xmlDec('r17taba', tabARows['130/A17']??'')}
+</secTabA_Riadok_17>
+</DPPO2012_DanovePriznanie_PO_4panel39>
+<DPPO2012_DanovePriznanie_PO_4panel31>
+<secTabB_Riadok_1>
+${xmlDec('r01tabb', tabBRows['B1']??'')}
+</secTabB_Riadok_1>
+<secTabB_Riadok_2>
+${xmlDec('r02tabb', tabBRows['B2']??'')}
+</secTabB_Riadok_2>
+<secTabB_Riadok_3>
+${xmlDec('r03tabb', tabBRows['B3']??'')}
+</secTabB_Riadok_3>
+<secTabB_Riadok_4>
+${xmlDec('r04tabb', tabBRows['B4']??'')}
+</secTabB_Riadok_4>
+<secTabB_Riadok_5>
+${xmlDec('r05tabb', tabBRows['B5']??'')}
+</secTabB_Riadok_5>
+<secTabB_Riadok_6>
+${xmlDec('r06tabb', tabBRows['B6']??'')}
+</secTabB_Riadok_6>
+</DPPO2012_DanovePriznanie_PO_4panel31>
+<DPPO2012_DanovePriznanie_PO_4panel32>
+<secTabC1_Riadok_1>
+</secTabC1_Riadok_1>
+<secTabC1_Riadok_2>
+</secTabC1_Riadok_2>
+<secTabC1_Riadok_3>
+</secTabC1_Riadok_3>
+<secTabC1_Riadok_4>
+</secTabC1_Riadok_4>
+<secTabC1_Riadok_5>
+</secTabC1_Riadok_5>
+<secTabC1_Riadok_6>
+</secTabC1_Riadok_6>
+<secTabC1_Poznamka>
+</secTabC1_Poznamka>
+</DPPO2012_DanovePriznanie_PO_4panel32>
+<DPPO2012_DanovePriznanie_PO_5panel32>
+<secTabC2_Riadok_1>
+</secTabC2_Riadok_1>
+<secTabC2_Riadok_2_Sec>
+</secTabC2_Riadok_2_Sec>
+<secTabC2_Riadok_3>
+</secTabC2_Riadok_3>
+<secTabC2_Riadok_4>
+</secTabC2_Riadok_4>
+<secTabC2_Riadok_5>
+</secTabC2_Riadok_5>
+<secTabC2_Riadok_6>
+</secTabC2_Riadok_6>
+<sevTabC2_Poznamka>
+</sevTabC2_Poznamka>
+</DPPO2012_DanovePriznanie_PO_5panel32>
+<secTabD>
+<secTabD_OsobitnyOdpocet>
+<secTabD_Cast1_Nadpis>
+</secTabD_Cast1_Nadpis>
+<secTabD_Cast1_Riadok1>
+</secTabD_Cast1_Riadok1>
+<secTabD_Cast1_Riadok2>
+</secTabD_Cast1_Riadok2>
+<secTabD_Cast1_Riadok3>
+</secTabD_Cast1_Riadok3>
+</secTabD_OsobitnyOdpocet>
+<secTabD_OdpocetDanovejStraty2>
+<secTabD_Cast2_Nadpis>
+</secTabD_Cast2_Nadpis>
+<secTabD_Cast2_Riadok_0>
+<TabD_Cast2_ZdanovacieObdobieOd></TabD_Cast2_ZdanovacieObdobieOd>
+<TabD_Cast2_ZdanovacieObdobieDo></TabD_Cast2_ZdanovacieObdobieDo>
+</secTabD_Cast2_Riadok_0>
+<secTabD_Cast2_Riadok_1>
+</secTabD_Cast2_Riadok_1>
+<secTabD_Cast2_Riadok_2>
+</secTabD_Cast2_Riadok_2>
+<secTabD_Cast2_Riadok_3>
+</secTabD_Cast2_Riadok_3>
+</secTabD_OdpocetDanovejStraty2>
+<secTabD_OdpocetDanovejStraty3>
+<secTabD_Cast3_Nadpis>
+</secTabD_Cast3_Nadpis>
+<secTabD_Cast3_Riadok_0>
+<TabD_Cast3_ZdanovacieObdobieOd></TabD_Cast3_ZdanovacieObdobieOd>
+<TabD_Cast3_ZdanovacieObdobieDo></TabD_Cast3_ZdanovacieObdobieDo>
+</secTabD_Cast3_Riadok_0>
+<secTabD_Cast3_Riadok_1>
+</secTabD_Cast3_Riadok_1>
+<secTabD_Cast3_Riadok_2>
+</secTabD_Cast3_Riadok_2>
+<secTabD_Cast3_Riadok_3>
+</secTabD_Cast3_Riadok_3>
+</secTabD_OdpocetDanovejStraty3>
+<secTabD_OdpocetDanovejStraty4>
+<secTabD_Cast4_Nadpis>
+</secTabD_Cast4_Nadpis>
+<secTabD_Cast4_Riadok_0>
+<TabD_Cast4_ZdanovacieObdobieOd></TabD_Cast4_ZdanovacieObdobieOd>
+<TabD_Cast4_ZdanovacieObdobieDo></TabD_Cast4_ZdanovacieObdobieDo>
+</secTabD_Cast4_Riadok_0>
+<secTabD_Cast4_Riadok_1>
+</secTabD_Cast4_Riadok_1>
+<secTabD_Cast4_Riadok_2>
+</secTabD_Cast4_Riadok_2>
+<secTabD_Cast4_Riadok_3>
+</secTabD_Cast4_Riadok_3>
+</secTabD_OdpocetDanovejStraty4>
+<secTabD_OdpocetDanovejStraty5>
+<secTabD_Cast5_Nadpis>
+</secTabD_Cast5_Nadpis>
+<secTabD_Cast5_Riadok_0>
+<TabD_Cast5_ZdanovacieObdobieOd></TabD_Cast5_ZdanovacieObdobieOd>
+<TabD_Cast5_ZdanovacieObdobieDo></TabD_Cast5_ZdanovacieObdobieDo>
+</secTabD_Cast5_Riadok_0>
+<secTabD_Cast5_Riadok_1>
+</secTabD_Cast5_Riadok_1>
+<secTabD_Cast5_Riadok_2>
+</secTabD_Cast5_Riadok_2>
+<secTabD_Cast5_Riadok_3>
+</secTabD_Cast5_Riadok_3>
+</secTabD_OdpocetDanovejStraty5>
+<secTabD_OdpocetDanovejStraty6>
+<secTabD_Cast6_Nadpis>
+</secTabD_Cast6_Nadpis>
+<secTabD_Cast6_Riadok_0>
+<TabD_Cast6_ZdanovacieObdobieOd></TabD_Cast6_ZdanovacieObdobieOd>
+<TabD_Cast6_ZdanovacieObdobieDo></TabD_Cast6_ZdanovacieObdobieDo>
+</secTabD_Cast6_Riadok_0>
+<secTabD_Cast6_Riadok_1>
+</secTabD_Cast6_Riadok_1>
+<secTabD_Cast6_Riadok_2>
+</secTabD_Cast6_Riadok_2>
+<secTabD_Cast6_Riadok_3>
+</secTabD_Cast6_Riadok_3>
+</secTabD_OdpocetDanovejStraty6>
+<secTabD_OdpocetDanovejStraty7>
+<secTabD_Cast7_Nadpis>
+</secTabD_Cast7_Nadpis>
+<secTabD_Cast7_Riadok_0>
+<TabD_Cast7_ZdanovacieObdobieOd></TabD_Cast7_ZdanovacieObdobieOd>
+<TabD_Cast7_ZdanovacieObdobieDo></TabD_Cast7_ZdanovacieObdobieDo>
+</secTabD_Cast7_Riadok_0>
+<secTabD_Cast7_Riadok_1>
+</secTabD_Cast7_Riadok_1>
+<secTabD_Cast7_Riadok_2>
+</secTabD_Cast7_Riadok_2>
+<secTabD_Cast7_Riadok_3>
+</secTabD_Cast7_Riadok_3>
+</secTabD_OdpocetDanovejStraty7>
+<secTabD_Spolu8>
+<secTabD_Cast8_Nadpis>
+</secTabD_Cast8_Nadpis>
+<secTabD_Cast8_Riadok_0>
+<TabD_Cast8_ZdanovacieObdobieOd></TabD_Cast8_ZdanovacieObdobieOd>
+<TabD_Cast8_ZdanovacieObdobieDo></TabD_Cast8_ZdanovacieObdobieDo>
+</secTabD_Cast8_Riadok_0>
+<secTabD_Cast8_Riadok_1>
+</secTabD_Cast8_Riadok_1>
+<secTabD_Cast8_Riadok_2>
+</secTabD_Cast8_Riadok_2>
+<secTabD_Cast8_Riadok_3>
+</secTabD_Cast8_Riadok_3>
+</secTabD_Spolu8>
+<secTabD_Spolu9>
+<secTabD_Cast9_Nadpis>
+</secTabD_Cast9_Nadpis>
+<secTabD_Cast9_Riadok_1>
+</secTabD_Cast9_Riadok_1>
+<secTabD_Cast9_Riadok_2>
+</secTabD_Cast9_Riadok_2>
+<secTabD_Cast9_Riadok_3>
+</secTabD_Cast9_Riadok_3>
+</secTabD_Spolu9>
+<sevTabD_Poznamka>
+</sevTabD_Poznamka>
+</secTabD>
+</DPPO2012_DanovePriznanie_PO_4>
+<DPPO2022_DanovePriznanie_PO_6>
+<DPPO2012_DanovePriznanie_PO_6panel56>
+<secTabE_Riadok_1>
+</secTabE_Riadok_1>
+<secTabE_Riadok_2>
+</secTabE_Riadok_2>
+<secTabE_Riadok_3>
+</secTabE_Riadok_3>
+<secTabE_Riadok_4>
+</secTabE_Riadok_4>
+<secTabE_Riadok_5>
+</secTabE_Riadok_5>
+<secTabE_Riadok_6>
+</secTabE_Riadok_6>
+<secTabE_Riadok_7>
+</secTabE_Riadok_7>
+<secTabE_Riadok_8>
+</secTabE_Riadok_8>
+<secTabE_Riadok_9>
+</secTabE_Riadok_9>
+<secTabE_Riadok_10>
+</secTabE_Riadok_10>
+</DPPO2012_DanovePriznanie_PO_6panel56>
+<DPPO2012_DanovePriznanie_PO_6panel10>
+<secTabF_Riadok_1>
+</secTabF_Riadok_1>
+<secTabF_Riadok_2>
+</secTabF_Riadok_2>
+<secTabF_Riadok_3>
+</secTabF_Riadok_3>
+</DPPO2012_DanovePriznanie_PO_6panel10>
+<DPPO2012_DanovePriznanie_PO_6panel18>
+<secTabG1_Riadok_1>
+</secTabG1_Riadok_1>
+<secTabG1_Riadok_2>
+</secTabG1_Riadok_2>
+<secTabG1_Riadok_3>
+</secTabG1_Riadok_3>
+<sek_nova_podCiarou>
+</sek_nova_podCiarou>
+</DPPO2012_DanovePriznanie_PO_6panel18>
+<secTabG2>
+<secTabG2_Riadok_1>
+</secTabG2_Riadok_1>
+<secTabG2_Riadok_2>
+</secTabG2_Riadok_2>
+<secTabG2_Riadok_3>
+</secTabG2_Riadok_3>
+<sekTabG2_Poznamka>
+</sekTabG2_Poznamka>
+</secTabG2>
+<DPPO2012_DanovePriznanie_PO_6panel34>
+<secTabG3_Riadok_1>
+</secTabG3_Riadok_1>
+<secTabG3_Riadok_2>
+</secTabG3_Riadok_2>
+<secTabG3_Riadok_3>
+</secTabG3_Riadok_3>
+<secTabG3_Riadok_4>
+</secTabG3_Riadok_4>
+<secTabG3_Poznamka>
+</secTabG3_Poznamka>
+</DPPO2012_DanovePriznanie_PO_6panel34>
+<DPPO2012_DanovePriznanie_PO_7panel42>
+<secTabH_Riadok_0>
+</secTabH_Riadok_0>
+<secTabH_Riadok_1>
+</secTabH_Riadok_1>
+<secTabH_Riadok_Prazdny>
+</secTabH_Riadok_Prazdny>
+<secTabH_Riadok_2>
+</secTabH_Riadok_2>
+<secTabH_Riadok_3>
+</secTabH_Riadok_3>
+<secTabH_Riadok_4>
+</secTabH_Riadok_4>
+<secTabH_Riadok_5>
+</secTabH_Riadok_5>
+<secTabH_Riadok_6>
+</secTabH_Riadok_6>
+<secTabH_Riadok_7>
+</secTabH_Riadok_7>
+<secTabH_Riadok_8>
+</secTabH_Riadok_8>
+<secTabH_Riadok_9>
+</secTabH_Riadok_9>
+<TabH_Riadok_10>
+</TabH_Riadok_10>
+<secTabH_Riadok_11>
+</secTabH_Riadok_11>
+<secTabH_Poznamka>
+</secTabH_Poznamka>
+</DPPO2012_DanovePriznanie_PO_7panel42>
+</DPPO2022_DanovePriznanie_PO_6>
+<DPPO2024_DanovePriznanie_PO_9>
+<sec_tabI>
+<sec_I_hlavicka0>
+</sec_I_hlavicka0>
+<sec_I_hlavicka>
+</sec_I_hlavicka>
+<sec_I_riadok>
+<tabI_cislo></tabI_cislo>
+<tabI_druh></tabI_druh>
+<tabi></tabi>
+<tabI_nazov_zo></tabI_nazov_zo>
+<tabI_stat></tabI_stat>
+</sec_I_riadok>
+</sec_tabI>
+</DPPO2024_DanovePriznanie_PO_9>
+<DPPO2024_DanovePriznanie_PO_10>
+<DPPO2012_DanovePriznanie_PO_7panel10>
+<secTabJ_Riadok_1>
+</secTabJ_Riadok_1>
+<secTabJ_Riadok_2>
+</secTabJ_Riadok_2>
+<secTabJ_Riadok_po>
+<datumodtabj></datumodtabj>
+<datumdotabj></datumdotabj>
+<tin></tin>
+</secTabJ_Riadok_po>
+</DPPO2012_DanovePriznanie_PO_7panel10>
+<sec_tabK>
+<sec_K_hlavicka1>
+</sec_K_hlavicka1>
+<sec_K_hlavicka2>
+</sec_K_hlavicka2>
+<sec_K_hlavicka3>
+</sec_K_hlavicka3>
+<sec_K_riadok1>
+<r1s2_od></r1s2_od>
+<r1s2_do></r1s2_do>
+<r1s2></r1s2>
+<r1s3></r1s3>
+<r1s4></r1s4>
+<r1s5></r1s5>
+</sec_K_riadok1>
+<sec_K_riadok2>
+<r2s2_od></r2s2_od>
+<r2s2_do></r2s2_do>
+<r2s2></r2s2>
+<r2s3></r2s3>
+<r2s4></r2s4>
+<r2s5></r2s5>
+</sec_K_riadok2>
+<sec_K_riadok3>
+<r3s2_od></r3s2_od>
+<r3s2_do></r3s2_do>
+<r3s2></r3s2>
+<r3s3></r3s3>
+<r3s4></r3s4>
+<r3s5></r3s5>
+</sec_K_riadok3>
+<sec_K_riadok4>
+<r4s2_od></r4s2_od>
+<r4s2_do></r4s2_do>
+<r4s2></r4s2>
+<r4s3></r4s3>
+<r4s4></r4s4>
+<r4s5></r4s5>
+</sec_K_riadok4>
+<sec_K_riadok5>
+<r5s2></r5s2>
+<r5s3></r5s3>
+<r5s4></r5s4>
+<r5s5></r5s5>
+</sec_K_riadok5>
+<sek_Poznamka_tabK_12>
+</sek_Poznamka_tabK_12>
+</sec_tabK>
+</DPPO2024_DanovePriznanie_PO_10>
+<DPPO2017_DanovePriznanie_PO_4>
+<secCastIV_Presun1>
+<secCastIV_Presun1_Nadpis>
+</secCastIV_Presun1_Nadpis>
+<secCastIV_Presun1_Riadok1>
+</secCastIV_Presun1_Riadok1>
+<secCastIV_Presun1_Riadok2>
+</secCastIV_Presun1_Riadok2>
+<secCastIV_Presun1_Riadok3>
+</secCastIV_Presun1_Riadok3>
+<secCastIV_Presun1_Riadok4>
+</secCastIV_Presun1_Riadok4>
+<secCastIV_Presun1_Riadok5>
+</secCastIV_Presun1_Riadok5>
+<secCastIV_Presun1_Riadok6>
+</secCastIV_Presun1_Riadok6>
+</secCastIV_Presun1>
+<secCastIV_Presun2>
+<secCastIV_Presun2_Riadok7>
+</secCastIV_Presun2_Riadok7>
+<secCastIV_Presun2_Riadok8>
+</secCastIV_Presun2_Riadok8>
+<secCastIV_Presun2_Riadok9>
+</secCastIV_Presun2_Riadok9>
+<secCastIV_Presun2_Riadok10>
+</secCastIV_Presun2_Riadok10>
+<secCastIV_Presun2_Riadok11>
+</secCastIV_Presun2_Riadok11>
+<secCastIV_Presun2_Riadok12>
+</secCastIV_Presun2_Riadok12>
+<secCastIV_Presun2_Riadok13>
+</secCastIV_Presun2_Riadok13>
+</secCastIV_Presun2>
+<secCastIV_Presun3>
+<secCastIV_Presun3_Nadpis>
+</secCastIV_Presun3_Nadpis>
+<secCastIV_Presun3_Riadok14>
+</secCastIV_Presun3_Riadok14>
+<secCastIV_Presun3_Riadok15>
+</secCastIV_Presun3_Riadok15>
+<secCastIV_Presun3_Riadok16>
+</secCastIV_Presun3_Riadok16>
+<secCastIV_Presun3_Riadok17>
+</secCastIV_Presun3_Riadok17>
+<secCastIV_Presun3_Riadok18>
+</secCastIV_Presun3_Riadok18>
+<secCastIV_Presun3_Riadok19>
+</secCastIV_Presun3_Riadok19>
+</secCastIV_Presun3>
+<secCastIV_Presun4>
+<secCastIV_Presun4_Riadok20>
+</secCastIV_Presun4_Riadok20>
+<secCastIV_Presun4_Riadok21>
+</secCastIV_Presun4_Riadok21>
+<secCastIV_Presun4_Riadok22>
+</secCastIV_Presun4_Riadok22>
+<secCastIV_Presun4_Riadok23>
+</secCastIV_Presun4_Riadok23>
+<secCastIV_Presun4_Riadok24>
+</secCastIV_Presun4_Riadok24>
+<secCastIV_Presun4_Riadok25>
+</secCastIV_Presun4_Riadok25>
+<secCastIV_Presun4_Riadok26>
+</secCastIV_Presun4_Riadok26>
+<secCastIV_Presun4_Riadok27>
+</secCastIV_Presun4_Riadok27>
+<secCastIV_Presun4_Riadok28>
+</secCastIV_Presun4_Riadok28>
+<secCastIV_Presun4_Riadok29>
+</secCastIV_Presun4_Riadok29>
+<secCastIV_Presun4_Riadok30>
+</secCastIV_Presun4_Riadok30>
+<secCastIV_Presun4_Riadok31>
+</secCastIV_Presun4_Riadok31>
+<secCastIV_Poznamka_13>
+</secCastIV_Poznamka_13>
+</secCastIV_Presun4>
+</DPPO2017_DanovePriznanie_PO_4>
+<DPPO2017_DanovePriznanie_PO_5>
+<secCastV>
+<secCastV_Nadpis>
+</secCastV_Nadpis>
+<secCastV_Riadok1>
+</secCastV_Riadok1>
+<secCastV_Riadok2>
+</secCastV_Riadok2>
+<secCastV_Riadok3>
+</secCastV_Riadok3>
+<secCastV_Riadok4>
+</secCastV_Riadok4>
+<secCastV_Riadok5>
+</secCastV_Riadok5>
+<secCastV_Riadok6>
+</secCastV_Riadok6>
+<secCastV_Poznamka_14>
+</secCastV_Poznamka_14>
+</secCastV>
+<secCastV_Vypocet>
+<secCastV_Riadok7>
+</secCastV_Riadok7>
+<secCastV_Riadok8>
+</secCastV_Riadok8>
+<secCastV_Riadok9>
+</secCastV_Riadok9>
+</secCastV_Vypocet>
+</DPPO2017_DanovePriznanie_PO_5>
+<DPPO2017_DanovePriznanie_PO_6>
+<sec6_1>
+<sec6_hlavicka1>
+</sec6_hlavicka1>
+<sec6_hlavicka2>
+</sec6_hlavicka2>
+<sec6_riadok1>
+</sec6_riadok1>
+<sec6_riadok2>
+</sec6_riadok2>
+<sec6_riadok3>
+</sec6_riadok3>
+<sec6_riadok4>
+</sec6_riadok4>
+<sec6_riadok5>
+</sec6_riadok5>
+</sec6_1>
+<sec2_6>
+<sec6_riadok6>
+</sec6_riadok6>
+<sec7_riadok5>
+</sec7_riadok5>
+<sec8_riadok5>
+</sec8_riadok5>
+</sec2_6>
+<sec3_6>
+<sec6_riadok9>
+</sec6_riadok9>
+<sec6_riadok10>
+</sec6_riadok10>
+<sec6_riadok11>
+</sec6_riadok11>
+<sec6_riadok12>
+</sec6_riadok12>
+<sec6_riadok13>
+</sec6_riadok13>
+<sec6_riadok14>
+</sec6_riadok14>
+</sec3_6>
+</DPPO2017_DanovePriznanie_PO_6>
+<DPPO2012_DanovePriznanie_PO_8panel5>
+<secTabVII_Riadok_0>
+<paragraf50cast6>${chk(h.c7paragraf50)}</paragraf50cast6>
+<OsobneUdaje>${chk(h.suhlasZasl)}</OsobneUdaje>
+</secTabVII_Riadok_0>
+<secTabVII_Riadok_1>
+<ucelpoukazaniapodielu></ucelpoukazaniapodielu>
+</secTabVII_Riadok_1>
+<secTabVII_Riadok_2>
+<skutocneposkytnutecast6></skutocneposkytnutecast6>
+</secTabVII_Riadok_2>
+<secTabVII_Riadok_3>
+<dvepercentacast6></dvepercentacast6>
+</secTabVII_Riadok_3>
+<secTabVII_Riadok_4>
+<jedenapolpercentacast6></jedenapolpercentacast6>
+</secTabVII_Riadok_4>
+<secTabVII_Riadok_5>
+<pocetprijimatelovcast6></pocetprijimatelovcast6>
+</secTabVII_Riadok_5>
+<secTabVII_UdajePrijimatel>
+<poradovecisloprijimatel></poradovecisloprijimatel>
+<ls>
+<sumaprijimatel></sumaprijimatel>
+</ls>
+<DPPO2012_DanovePriznanie_PO_8panel28>
+<icoprijimatel></icoprijimatel>
+<obchodnemenoprijimatel></obchodnemenoprijimatel>
+</DPPO2012_DanovePriznanie_PO_8panel28>
+</secTabVII_UdajePrijimatel>
+</DPPO2012_DanovePriznanie_PO_8panel5>
+<DPPO2017_DanovePriznanie_PO_7>
+<KJQA>
+<osobitnezaznamycast7>${esc(h.osobitneZaznamy||'')}</osobitnezaznamycast7>
+</KJQA>
+</DPPO2017_DanovePriznanie_PO_7>
+<DPPO2012_DanovePriznanie_PO_9panel27>
+<priezviskoopravnenaosoba>${esc(h.opPriezvisko)}</priezviskoopravnenaosoba>
+<menoopravnenaosoba>${esc(h.opMeno)}</menoopravnenaosoba>
+<titulopravnenaosoba>${esc(h.opTitul)}</titulopravnenaosoba>
+<titulopravnenaosoba_za>${esc(h.opTitulZa)}</titulopravnenaosoba_za>
+<postavenieopravnenaosoba>${esc(h.opPostavenie)}</postavenieopravnenaosoba>
+<DPPO2012_DanovePriznanie_PO_9panel15>
+<ulicatrvalypobyt>${esc(h.opUlica)}</ulicatrvalypobyt>
+<cislotrvalypobyt>${esc(h.opCislo)}</cislotrvalypobyt>
+<psctrvalypobyt>${esc(String(h.opPsc).replace(/\s/g,''))}</psctrvalypobyt>
+<obectrvalypobyt>${esc(h.opObec)}</obectrvalypobyt>
+<stattrvalypobyt>${esc(h.opStat)}</stattrvalypobyt>
+<telcislotrvalypobyt>${esc(h.opTel)}</telcislotrvalypobyt>
+<faxemailtrvalypobyt>${esc(h.opEmail)}</faxemailtrvalypobyt>
+</DPPO2012_DanovePriznanie_PO_9panel15>
+<Vyhlasenie>
+<pocetpriloh>${esc(h.pocetPriloh)}</pocetpriloh>
+<vyhlaseniedatum>${esc(h.datumVyhlasenia)}</vyhlaseniedatum>
+</Vyhlasenie>
+</DPPO2012_DanovePriznanie_PO_9panel27>
+<DPPO2017_DanovePriznanie_PO_8>
+<splatky>
+<secSplatkovyKalendar>
+<secCastVIII_nadpis>
+</secCastVIII_nadpis>
+<secCastVIII_splatka1>
+<Splatka_PC></Splatka_PC>
+<datum_cast8></datum_cast8>
+<suma_cast8></suma_cast8>
+</secCastVIII_splatka1>
+</secSplatkovyKalendar>
+<datumcast8></datumcast8>
+</splatky>
+</DPPO2017_DanovePriznanie_PO_8>
+<DPPO2017_DanovePriznanie_PO_9>
+<vrateniepreplatku></vrateniepreplatku>
+<pp2222></pp2222>
+<vrateniecislouctuiban></vrateniecislouctuiban>
+<secPoznamka_Danovnik>
+</secPoznamka_Danovnik>
+<vrateniedatum></vrateniedatum>
+</DPPO2017_DanovePriznanie_PO_9>
+<secPriloha13a_13b>
+<sekcia13a>
+<secVyska13a>
+<priloha13ab_r1></priloha13ab_r1>
+</secVyska13a>
+<secpopis13a>
+<priloha13a></priloha13a>
+</secpopis13a>
+</sekcia13a>
+<sekcia13b>
+<secVyska13b>
+<priloha13ab_r2></priloha13ab_r2>
+</secVyska13b>
+<secpopis13b>
+<priloha13b></priloha13b>
+</secpopis13b>
+</sekcia13b>
+<secSpolu>
+<spolu13ab></spolu13ab>
+</secSpolu>
+</secPriloha13a_13b>
+<secPriloha30c>
+<secPriloha30_Hlavicka1>
+<lblProjektCislo></lblProjektCislo>
+<lblPocetProjektov></lblPocetProjektov>
+<DatumZaciatkuRealizacieProjektu></DatumZaciatkuRealizacieProjektu>
+</secPriloha30_Hlavicka1>
+<secPriloha30_Hlavicka2>
+</secPriloha30_Hlavicka2>
+<secPriloha30_Hlavicka3>
+</secPriloha30_Hlavicka3>
+<secPriloha30_Riadok1>
+<Priloha30_r1s2_od></Priloha30_r1s2_od>
+<Priloha30_r1s2_do></Priloha30_r1s2_do>
+<Priloha30_r1s2_narok></Priloha30_r1s2_narok>
+<Priloha30_r1s3_odpo></Priloha30_r1s3_odpo>
+</secPriloha30_Riadok1>
+<secPriloha30_Riadok2>
+<Priloha30_r2s2_od></Priloha30_r2s2_od>
+<Priloha30_r2s2_do></Priloha30_r2s2_do>
+<Priloha30_r2s2_narok></Priloha30_r2s2_narok>
+<Priloha30_r2s3_odpo></Priloha30_r2s3_odpo>
+</secPriloha30_Riadok2>
+<secPriloha30_Riadok3>
+<Priloha30_r3s2_od></Priloha30_r3s2_od>
+<Priloha30_r3s2_do></Priloha30_r3s2_do>
+<Priloha30_r3s2_narok></Priloha30_r3s2_narok>
+<Priloha30_r3s3_odpo></Priloha30_r3s3_odpo>
+</secPriloha30_Riadok3>
+<secPriloha30_Riadok4>
+<Priloha30_r4s2_od></Priloha30_r4s2_od>
+<Priloha30_r4s2_do></Priloha30_r4s2_do>
+<Priloha30_r4s2_narok></Priloha30_r4s2_narok>
+<Priloha30_r4s3_odpo></Priloha30_r4s3_odpo>
+</secPriloha30_Riadok4>
+<secPriloha30_Riadok5>
+<Priloha30_r5s2_od></Priloha30_r5s2_od>
+<Priloha30_r5s2_do></Priloha30_r5s2_do>
+<Priloha30_r5s2_narok></Priloha30_r5s2_narok>
+<Priloha30_r5s3_odpo></Priloha30_r5s3_odpo>
+</secPriloha30_Riadok5>
+<secPriloha30_Riadok6>
+<Priloha30_r6s2></Priloha30_r6s2>
+<Priloha30_r6s3></Priloha30_r6s3>
+</secPriloha30_Riadok6>
+<secCieleProjektu>
+<txtPriloha30_CieleProjektu></txtPriloha30_CieleProjektu>
+</secCieleProjektu>
+<secOdpocty>
+<sec7Odpocet>
+<Odpocet_r7_s2></Odpocet_r7_s2>
+<Spolu_r7_s3></Spolu_r7_s3>
+</sec7Odpocet>
+<sec8Odpocet>
+<Odpocet_r8_s2></Odpocet_r8_s2>
+<Spolu_r8_s3></Spolu_r8_s3>
+</sec8Odpocet>
+<secPoznamka18>
+</secPoznamka18>
+</secOdpocty>
+<secSpolu_30>
+<sec9Spolu>
+<Spolu_r9_s2></Spolu_r9_s2>
+<Spolu_r9_s3></Spolu_r9_s3>
+</sec9Spolu>
+<secPoznamka19>
+</secPoznamka19>
+</secSpolu_30>
+</secPriloha30c>
+<secPriloha30ca>
+<secPriloha30Ca_Hlavicka1>
+</secPriloha30Ca_Hlavicka1>
+<secPriloha30ca_Hlavicka2>
+</secPriloha30ca_Hlavicka2>
+<secPriloha30ca_Riadok1>
+<Priloha30ca_r1s2_od></Priloha30ca_r1s2_od>
+<Priloha30ca_r1s2_do></Priloha30ca_r1s2_do>
+<Priloha30ca_r1s2_narok></Priloha30ca_r1s2_narok>
+<Priloha30ca_r1s3_odpo></Priloha30ca_r1s3_odpo>
+</secPriloha30ca_Riadok1>
+<secPriloha30ca_Riadok2>
+<Priloha30ca_r2s2_od></Priloha30ca_r2s2_od>
+<Priloha30ca_r2s2_do></Priloha30ca_r2s2_do>
+<Priloha30ca_r2s2_narok></Priloha30ca_r2s2_narok>
+<Priloha30ca_r2s3_odpo></Priloha30ca_r2s3_odpo>
+</secPriloha30ca_Riadok2>
+<secPriloha30ca_Riadok3>
+<Priloha30ca_r3s2_od></Priloha30ca_r3s2_od>
+<Priloha30ca_r3s2_do></Priloha30ca_r3s2_do>
+<Priloha30ca_r3s2_narok></Priloha30ca_r3s2_narok>
+<Priloha30ca_r3s3_odpo></Priloha30ca_r3s3_odpo>
+</secPriloha30ca_Riadok3>
+<secPriloha30ca_Riadok4>
+<Priloha30ca_r4s2_od></Priloha30ca_r4s2_od>
+<Priloha30ca_r4s2_do></Priloha30ca_r4s2_do>
+<Priloha30ca_r4s2_narok></Priloha30ca_r4s2_narok>
+<Priloha30ca_r4s3_odpo></Priloha30ca_r4s3_odpo>
+</secPriloha30ca_Riadok4>
+<secPriloha30ca_Riadok5>
+<Priloha30ca_r5s2_od></Priloha30ca_r5s2_od>
+<Priloha30ca_r5s2_do></Priloha30ca_r5s2_do>
+<Priloha30ca_r5s2_narok></Priloha30ca_r5s2_narok>
+<Priloha30ca_r5s3_odpo></Priloha30ca_r5s3_odpo>
+</secPriloha30ca_Riadok5>
+<secOdpoctyCa>
+<sec6OdpocetCa>
+<Odpocet_r6_s2Ca></Odpocet_r6_s2Ca>
+<Spolu_r6_s3ca></Spolu_r6_s3ca>
+</sec6OdpocetCa>
+<sec7OdpocetCa>
+<Odpocet_r7_s2Ca></Odpocet_r7_s2Ca>
+<Spolu_r7_s3ca></Spolu_r7_s3ca>
+</sec7OdpocetCa>
+</secOdpoctyCa>
+<sec8Spolu_ca>
+<sec8SpoluCa>
+<Spolu_r8_s2ca></Spolu_r8_s2ca>
+<Spolu_r8_s3ca></Spolu_r8_s3ca>
+</sec8SpoluCa>
+<secPoznamka20>
+</secPoznamka20>
+</sec8Spolu_ca>
+</secPriloha30ca>
+<secPriloha30e>
+<secPriloha30e_Hlavicka1>
+</secPriloha30e_Hlavicka1>
+<secPriloha30_eHlavicka2>
+</secPriloha30_eHlavicka2>
+<secPriloha30e_Riadok1>
+<Priloha30e_r1s1_od></Priloha30e_r1s1_od>
+<Priloha30e_r1s1_do></Priloha30e_r1s1_do>
+<Priloha30e_r1s2_hodnota></Priloha30e_r1s2_hodnota>
+<Priloha30e_r1s3_narok></Priloha30e_r1s3_narok>
+<Priloha30e_r1s4_cast></Priloha30e_r1s4_cast>
+</secPriloha30e_Riadok1>
+<secPriloha30e_Riadok2>
+<Priloha30e_r2s1_od></Priloha30e_r2s1_od>
+<Priloha30e_r2s1_do></Priloha30e_r2s1_do>
+<Priloha30e_r2s2_hodnota></Priloha30e_r2s2_hodnota>
+<Priloha30e_r2s3_narok></Priloha30e_r2s3_narok>
+<Priloha30e_r2s4_cast></Priloha30e_r2s4_cast>
+</secPriloha30e_Riadok2>
+<secPriloha30e_Riadok3>
+<Priloha30e_r3s1_od></Priloha30e_r3s1_od>
+<Priloha30e_r3s1_do></Priloha30e_r3s1_do>
+<Priloha30e_r3s2_hodnota></Priloha30e_r3s2_hodnota>
+<Priloha30e_r3s3_narok></Priloha30e_r3s3_narok>
+<Priloha30e_r3s4_cast></Priloha30e_r3s4_cast>
+</secPriloha30e_Riadok3>
+<secPriloha30e_Riadok4>
+<Priloha30e_r4s1_od></Priloha30e_r4s1_od>
+<Priloha30e_r4s1_do></Priloha30e_r4s1_do>
+<Priloha30e_r4s2_hodnota></Priloha30e_r4s2_hodnota>
+<Priloha30e_r4s3_narok></Priloha30e_r4s3_narok>
+<Priloha30e_r4s4_cast></Priloha30e_r4s4_cast>
+</secPriloha30e_Riadok4>
+<secPriloha30e_Riadok5>
+<Priloha30e_r5s1_od></Priloha30e_r5s1_od>
+<Priloha30e_r5s1_do></Priloha30e_r5s1_do>
+<Priloha30e_r5s2_hodnota></Priloha30e_r5s2_hodnota>
+<Priloha30e_r5s3_narok></Priloha30e_r5s3_narok>
+<Priloha30e_r5s4_cast></Priloha30e_r5s4_cast>
+</secPriloha30e_Riadok5>
+<secPriloha30e_Riadok6>
+<Priloha30e_r6s1_od></Priloha30e_r6s1_od>
+<Priloha30e_r6s1_do></Priloha30e_r6s1_do>
+<Priloha30e_r6s2_hodnota></Priloha30e_r6s2_hodnota>
+<Priloha30e_r6s3_narok></Priloha30e_r6s3_narok>
+<Priloha30e_r6s4_cast></Priloha30e_r6s4_cast>
+</secPriloha30e_Riadok6>
+<secPriloha30e_Riadok7>
+<Priloha30e_r7s1_od></Priloha30e_r7s1_od>
+<Priloha30e_r7s1_do></Priloha30e_r7s1_do>
+<Priloha30e_r7s2_hodnota></Priloha30e_r7s2_hodnota>
+<Priloha30e_r7s3_narok></Priloha30e_r7s3_narok>
+<Priloha30e_r7s4_cast></Priloha30e_r7s4_cast>
+</secPriloha30e_Riadok7>
+<secPriloha30e_Riadok8>
+<Priloha30e_r8s1_od></Priloha30e_r8s1_od>
+<Priloha30e_r8s1_do></Priloha30e_r8s1_do>
+<Priloha30e_r8s2_hodnota></Priloha30e_r8s2_hodnota>
+<Priloha30e_r8s3_narok></Priloha30e_r8s3_narok>
+<Priloha30e_r8s4_cast></Priloha30e_r8s4_cast>
+</secPriloha30e_Riadok8>
+<secPriloha30e_Riadok9>
+<Priloha30e_r9s1_od></Priloha30e_r9s1_od>
+<Priloha30e_r9s1_do></Priloha30e_r9s1_do>
+<Priloha30e_r9s2_hodnota></Priloha30e_r9s2_hodnota>
+<Priloha30e_r9s3_narok></Priloha30e_r9s3_narok>
+<Priloha30e_r9s4_cast></Priloha30e_r9s4_cast>
+</secPriloha30e_Riadok9>
+<secPriloha30e_Riadok10>
+<Priloha30e_r10s1_od></Priloha30e_r10s1_od>
+<Priloha30e_r10s1_do></Priloha30e_r10s1_do>
+<Priloha30e_r10s2_hodnota></Priloha30e_r10s2_hodnota>
+<Priloha30e_r10s3_narok></Priloha30e_r10s3_narok>
+<Priloha30e_r10s4_cast></Priloha30e_r10s4_cast>
+</secPriloha30e_Riadok10>
+<secPriloha30e_Riadok11>
+<Priloha30e_r11s2_hodnota></Priloha30e_r11s2_hodnota>
+<Priloha30e_r11s3_narok></Priloha30e_r11s3_narok>
+<Priloha30e_r11s4_castspolu></Priloha30e_r11s4_castspolu>
+</secPriloha30e_Riadok11>
+<secPriloha30e_Riadok12>
+<Priloha30e_r12s4_plan></Priloha30e_r12s4_plan>
+</secPriloha30e_Riadok12>
+</secPriloha30e>
+</DPPO2025>`;
 
-  let tabH='<tabH>\n'+xmlDec('r01','')+'\n<prijmy>';
-  for (let i=2;i<=10;i++) tabH+=xmlDec('r'+pad2(i),'');
-  tabH+='</prijmy>\n<vydavky>';
-  for (let i=2;i<=10;i++) tabH+=xmlDec('r'+pad2(i),'');
-  tabH+='</vydavky>\n'+xmlDec('r11','')+'\n</tabH>\n';
-
-  const emptyTr=()=>xmlEl('druh','')+xmlDec('vplyvNaR100','')+xmlEl('nazovZavislejOsoby','')+xmlEl('kodStatu','');
-  let tabI='<tabI>\n'; for (let i=1;i<=18;i++) tabI+='<r'+pad2(i)+'>'+emptyTr()+'</r'+pad2(i)+'>\n'; tabI+='</tabI>\n';
-  let tabJ='<tabJ>'+xmlDec('r01','')+xmlDec('r02','')+'</tabJ>\n';
-  let obm='<obmedzenaDanovaPovinnost>'+xmlEl('datumOd','')+xmlEl('datumDo','')+xmlEl('TIN','')+'</obmedzenaDanovaPovinnost>\n';
-
-  let tabK='<tabK>\n<obdobiaMinimalDane>\n';
-  for (let i=1;i<=4;i++) tabK+='<obdobie'+i+'>'+xmlEl('datumOd','')+xmlEl('datumDo','')+xmlDec('vyskaKladnehoRozdielu','')+xmlDec('zapocitanaVPredObdobiach','')+xmlDec('zapocitanaVDanomObdobi','')+xmlDec('zostavajucaCast','')+'</obdobie'+i+'>\n';
-  tabK+='</obdobiaMinimalDane>\n<spolu>'+xmlDec('zapocitanaVDanomObdobi','')+xmlDec('zostavajucaCast','')+'</spolu>\n</tabK>\n';
-
-  let z17='<zdaneniePar17f>\n';
-  for (let i=1;i<=6;i++) z17+='<r'+pad2(i)+'>'+t2s()+'</r'+pad2(i)+'>\n';
-  for (let i=7;i<=13;i++) z17+=xmlDec('r'+pad2(i),'')+'\n';
-  for (let i=14;i<=19;i++) z17+='<r'+pad2(i)+'>'+t2s()+'</r'+pad2(i)+'>\n';
-  for (let i=20;i<=27;i++) z17+=xmlDec('r'+pad2(i),'')+'\n';
-  z17+='<r28></r28>\n';
-  for (let i=29;i<=31;i++) z17+=xmlDec('r'+pad2(i),'')+'\n';
-  z17+='</zdaneniePar17f>\n';
-
-  let p51='<podielyNaZiskuPar51e>\n';
-  for (let i=1;i<=3;i++) p51+=xmlDec('r'+pad2(i),'')+'\n';
-  for (let i=4;i<=6;i++) p51+='<r'+pad2(i)+'>'+t2s()+'</r'+pad2(i)+'>\n';
-  p51+=xmlDec('r07','')+'\n<r08></r08>\n'+xmlDec('r09','')+'\n</podielyNaZiskuPar51e>\n';
-
-  let vsd='<vynosyZoStatnychDlhopisov>\n';
-  for (let i=1;i<=3;i++) vsd+='<r'+i+'>'+t2s()+'</r'+i+'>';
-  vsd+='<r4><s1>16</s1><s2>13</s2></r4>';
-  for (let i=5;i<=14;i++) vsd+='<r'+i+'>'+t2s()+'</r'+i+'>';
-  vsd+='\n</vynosyZoStatnychDlhopisov>\n';
-
-  let c7=xmlEl('c7paragraf50',h.c7paragraf50)+'\n'+xmlEl('suhlasZasl',h.suhlasZasl)+'\n';
-  c7+=xmlDec('c7r1','')+xmlDec('c7r2','')+xmlDec('c7r3','')+xmlDec('c7r4','')+'\n<c7r5></c7r5>\n';
-  c7+='<c7prijimatel1>'+xmlDec('suma','')+'<ico></ico><obchodneMeno><riadok></riadok><riadok></riadok></obchodneMeno></c7prijimatel1>\n';
-
-  let op='<opravnenaOsoba>\n'+xmlEl('priezvisko',h.opPriezvisko)+xmlEl('meno',h.opMeno)+xmlEl('titul',h.opTitul)+xmlEl('titulZa',h.opTitulZa)+xmlEl('postavenie',h.opPostavenie)+'\n';
-  op+='<trvalyPobyt>'+xmlEl('ulica',h.opUlica)+xmlEl('cislo',h.opCislo)+xmlEl('psc',h.opPsc)+xmlEl('obec',h.opObec)+xmlEl('stat',h.opStat)+xmlEl('tel',h.opTel)+xmlEl('emailFax',h.opEmail)+'</trvalyPobyt>\n</opravnenaOsoba>\n';
-
-  let pl='<platenieDanePar17f>\n'+xmlEl('ziadam17f','0')+'\n';
-  for (let i=0;i<5;i++) pl+='<splatka>'+xmlEl('datumSplat','')+xmlDec('suma','')+'</splatka>\n';
-  pl+=xmlEl('datum','')+'\n</platenieDanePar17f>\n';
-
-  let vr='<vrateniePreplatku>\n'+xmlEl('vratit','0')+'\n<sposobPlatby>'+xmlEl('poukazka','0')+xmlEl('ucet','0')+'</sposobPlatby>\n';
-  vr+='<bankovyUcet>'+xmlEl('IBAN','')+'</bankovyUcet>\n'+xmlEl('datum','')+'\n</vrateniePreplatku>\n';
-
-  let pr13='<prilPar13aA13b>'+xmlDec('r01','')+xmlEl('cisloPatentuSoftver','')+xmlDec('r02','')+xmlEl('cisloPatentu','')+xmlDec('r03','')+'</prilPar13aA13b>\n';
-
-  // Príloha §30c – Odpočet výdavkov na výskum a vývoj
-  const emptyOdpocet = () => xmlEl('s01Od','')+xmlEl('s01Do','')+xmlDec('s02','')+xmlDec('s03','');
-  let pril30c = '<prilPar30cOdpocetVydavkov>\n';
-  pril30c += xmlEl('projektCislo','')+xmlEl('pocetProjektov','')+xmlEl('datumRealizacie','')+'\n';
-  for (let i=1;i<=5;i++) pril30c += '<r'+pad2(i)+'>'+emptyOdpocet()+'</r'+pad2(i)+'>\n';
-  pril30c += xmlDec('r06','')+'\n'+xmlEl('ciele','')+'\n';
-  pril30c += xmlDec('r07','')+'\n'+xmlDec('r08','')+'\n'+xmlDec('r09','')+'\n';
-  pril30c += '</prilPar30cOdpocetVydavkov>\n';
-
-  // Príloha §30ca – Odpočet výdavkov na podporu športu
-  let pril30ca = '<prilPar30caOdpocetVydavkovSport>\n';
-  for (let i=1;i<=5;i++) pril30ca += '<r'+pad2(i)+'>'+emptyOdpocet()+'</r'+pad2(i)+'>\n';
-  pril30ca += xmlDec('r06','')+'\n'+xmlDec('r07','')+'\n'+xmlDec('r08','')+'\n';
-  pril30ca += '</prilPar30caOdpocetVydavkovSport>\n';
-
-  // Príloha §30e – Výdavky na investície
-  const emptyInvesticia = () => xmlEl('s01Od','')+xmlEl('s01Do','')+xmlDec('s02','')+xmlDec('s03','')+xmlDec('s04','');
-  let pril30e = '<prilPar30eVydavkyInvesticie>\n';
-  for (let i=1;i<=10;i++) pril30e += '<r'+pad2(i)+'>'+emptyInvesticia()+'</r'+pad2(i)+'>\n';
-  pril30e += xmlDec('r11','')+'\n'+xmlDec('r12','')+'\n';
-  pril30e += '</prilPar30eVydavkyInvesticie>\n';
-
-  // Príloha k VII. časti – ďalší prijímatelia
-  let priloha = '<priloha>\n<prijimatel>\n';
-  priloha += xmlEl('poradoveCislo','')+xmlDec('suma','')+'\n';
-  priloha += '<ico></ico>\n<obchodneMeno><riadok></riadok><riadok></riadok></obchodneMeno>\n';
-  priloha += '</prijimatel>\n</priloha>\n';
-
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<dokument>
-<hlavicka>
-${xmlEl('dic',h.dic)}
-${xmlEl('ico',h.ico)}
-${xmlEl('pravnaForma',h.pravnaForma)}
-<typDP>${xmlEl('rdp',h.rdp)}${xmlEl('odp',h.odp)}${xmlEl('ddp',h.ddp)}</typDP>
-<zdanovacieObdobie>${xmlEl('od',h.zdanObdOd)}${xmlEl('do',h.zdanObdDo)}</zdanovacieObdobie>
-<skNace><k1>${esc(h.skNaceK1)}</k1><k2>${esc(h.skNaceK2)}</k2><k3>${esc(h.skNaceK3)}</k3>${xmlEl('cinnost',h.skNaceCinnost)}</skNace>
-<obchodneMeno><riadok>${esc(h.obchodneMeno)}</riadok><riadok></riadok><riadok></riadok></obchodneMeno>
-<sidlo>${xmlEl('ulica',h.sidloUlica)}${xmlEl('cislo',h.sidloCislo)}${xmlEl('psc',String(h.sidloPsc).replace(/\s/g,''))}${xmlEl('obec',h.sidloObec)}${xmlEl('stat',h.sidloStat)}${xmlEl('tel',h.sidloTel)}${xmlEl('emailFax',h.sidloEmail)}</sidlo>
-${xmlEl('uplatnujemPar17',h.uplatnujemPar17)}
-${xmlEl('ukoncujemUplatnovaniePar17',h.ukoncujemPar17)}
-${xmlEl('obmedzenie',h.obmedzenie)}
-${xmlEl('prepojenie',h.prepojenie)}
-${xmlEl('uplatnenieOslobodeniaPar13ab',h.oslobodenie13ab)}
-${xmlEl('mikrodanovnikPar2w',h.mikrodanovnik)}
-${xmlEl('polovicnaVyskaDanePar46b3',h.polovicna46b3)}
-${xmlEl('neplatenieMinDanePar46b7',h.neplatenie46b7)}
-${xmlEl('zapocitanieMinDanePar46b5',h.zapocitanie46b5)}
-<stalaPrevadzkaren>${xmlEl('ulica',h.spUlica)}${xmlEl('cislo',h.spCislo)}${xmlEl('psc',h.spPsc)}${xmlEl('obec',h.spObec)}${xmlEl('pocetSp',h.spPocet)}</stalaPrevadzkaren>
-</hlavicka>
-<telo>
-${teloRows}
-${tabA}${tabB}${emptyTab6('tabC1')}${emptyTab6('tabC2')}${tabD}${tabE}${tabF}${tabG('tabG1',3)}${tabG('tabG2',3)}${tabG('tabG3',4)}${tabH}${tabI}${tabJ}${obm}${tabK}${z17}${p51}${vsd}${c7}<osobitneZaznamy>${h.osobitneZaznamy ? '<![CDATA['+h.osobitneZaznamy+']]>' : ''}</osobitneZaznamy>
-${op}${xmlEl('pocetPriloh',h.pocetPriloh)}
-${xmlEl('datumVyhlasenia',h.datumVyhlasenia)}
-${pl}${vr}${pr13}${pril30c}${pril30ca}${pril30e}${priloha}</telo>
-</dokument>`;
+  return xml;
 }
 
 // =====================================================================
@@ -513,7 +1586,6 @@ function defaultHeader() {
     sidloPsc:'', sidloObec:'', sidloStat:'Slovensko',
     sidloTel:'', sidloEmail:'',
     zdanObdOd:'01.01.2025', zdanObdDo:'31.12.2025',
-    rdp:1, odp:0, ddp:0,
     uplatnujemPar17:0, ukoncujemPar17:0, obmedzenie:0, prepojenie:0,
     oslobodenie13ab:0, mikrodanovnik:0, polovicna46b3:0,
     neplatenie46b7:0, zapocitanie46b5:0,
@@ -571,7 +1643,7 @@ function doDownload() {
   const a = document.createElement('a');
   a.href = url;
   const safeName = header.obchodneMeno ? header.obchodneMeno.replace(/[^a-zA-Z0-9áäčďéíľĺňóôŕšťúýžÁÄČĎÉÍĽĹŇÓÔŔŠŤÚÝŽ ]/g,'_').replace(/ /g,'_') : '';
-  a.download = safeName ? 'DPPO_2025_'+safeName+'.xml' : 'DPPO_2025.xml';
+  a.download = safeName ? 'DPPO_2025_eform_'+safeName+'.xml' : 'DPPO_2025_eform.xml';
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -684,8 +1756,6 @@ function renderHeaderTab() {
   html += field('E-mail / Fax','sidloEmail',h.sidloEmail)+'</div>';
   html += '<h3 class="section-title" style="margin-top:24px">Zdaňovacie obdobie a typ DP</h3><div class="form-grid-3">';
   html += field('Od','zdanObdOd',h.zdanObdOd)+field('Do','zdanObdDo',h.zdanObdDo)+'<div></div></div>';
-  html += '<div class="check-grid" style="margin-top:12px">';
-  html += check('Riadne DP','rdp',h.rdp)+check('Opravné DP','odp',h.odp)+check('Dodatočné DP','ddp',h.ddp)+'</div>';
   html += '<h3 class="section-title" style="margin-top:24px">Označenia na str. 1</h3><div class="check-grid">';
   html += check('Uplatňujem §17 ods. 17 (kurzové rozdiely)','uplatnujemPar17',h.uplatnujemPar17);
   html += check('Ukončujem uplatňovanie §17 ods. 17','ukoncujemPar17',h.ukoncujemPar17);
@@ -726,7 +1796,7 @@ function renderOsobaTab() {
 function renderXmlTab() {
   if (!xmlPreview) xmlPreview = generateXml(header, rows, tabARows, tabBRows);
   let html = '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">';
-  html += '<h3 class="section-title" style="margin:0">XML náhľad</h3>';
+  html += '<h3 class="section-title" style="margin:0">XML náhľad (e-form format)</h3>';
   html += '<div style="display:flex;gap:10px"><button class="btn btn-blue" onclick="xmlPreview=generateXml(header,rows,tabARows,tabBRows);renderXmlTab()">Obnoviť</button>';
   html += '<button class="btn btn-green" onclick="doDownload()">⬇ Stiahnuť</button></div></div>';
   html += '<pre class="xml-pre">'+esc(xmlPreview)+'</pre></div>';
