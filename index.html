@@ -188,8 +188,12 @@ label.btn input[type="file"]{display:none}
       <span class="step-num">KROK 4</span>
       <span class="step-label">Oprávnená osoba</span>
     </div>
-    <div class="step" data-step="xml">
+    <div class="step" data-step="vyhlasenie">
       <span class="step-num">KROK 5</span>
+      <span class="step-label">VII. Vyhlásenie §50</span>
+    </div>
+    <div class="step" data-step="xml">
+      <span class="step-num">KROK 6</span>
       <span class="step-label">XML výstup</span>
     </div>
   </div>
@@ -238,6 +242,15 @@ label.btn input[type="file"]{display:none}
     <div id="osobaContent"></div>
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="goStep('header')">Späť</button>
+      <button class="btn btn-primary" onclick="goStep('vyhlasenie')">Pokračovať</button>
+    </div>
+  </div>
+
+  <!-- PAGE: VII. VYHLÁSENIE §50 -->
+  <div class="page" id="page-vyhlasenie">
+    <div id="vyhlasenieContent"></div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep('osoba')">Späť</button>
       <button class="btn btn-green" onclick="doGenerate()">Generovať XML</button>
     </div>
   </div>
@@ -246,7 +259,7 @@ label.btn input[type="file"]{display:none}
   <div class="page" id="page-xml">
     <div id="xmlContent"></div>
     <div class="btn-row">
-      <button class="btn btn-secondary" onclick="goStep('osoba')">Späť</button>
+      <button class="btn btn-secondary" onclick="goStep('vyhlasenie')">Späť</button>
       <button class="btn btn-green" onclick="doDownload()">Stiahnuť XML súbor</button>
     </div>
   </div>
@@ -537,13 +550,12 @@ function generateXml(header, rows, tabARows, tabBRows) {
   xml += '\t\t<zapocitanieMinDanePar46b5>'+String(h.zapocitanie46b5 ? '1' : '0')+'</zapocitanieMinDanePar46b5>\n';
 
   const spStr = (v) => { const s = String(v || '').trim(); if (!s) return ''; const n = parseFloat(s.replace(',','.')); if (!isNaN(n) && s.length < 20) return ''; return s; };
-  const pocetSpVal = (() => { const s = String(h.spPocet || '').trim(); const n = parseInt(s, 10); if (!isNaN(n) && n >= 0 && String(n) === s) return s; return '0'; })();
   xml += '\t\t<stalaPrevadzkaren>\n';
   xml += '\t\t\t<ulica>'+esc(spStr(h.spUlica))+'</ulica>\n';
   xml += '\t\t\t<cislo>'+esc(spStr(h.spCislo))+'</cislo>\n';
   xml += '\t\t\t<psc>'+esc(String(spStr(h.spPsc)).replace(/\s/g,''))+'</psc>\n';
   xml += '\t\t\t<obec>'+esc(spStr(h.spObec))+'</obec>\n';
-  xml += '\t\t\t<pocetSp>'+esc(pocetSpVal)+'</pocetSp>\n';
+  xml += '\t\t\t<pocetSp></pocetSp>\n';
   xml += '\t\t</stalaPrevadzkaren>\n';
 
   xml += '\t</hlavicka>\n';
@@ -629,7 +641,7 @@ function generateXml(header, rows, tabARows, tabBRows) {
   for (let i=1;i<=10;i++) xml += '\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
   xml += '\t\t</tabE>\n';
 
-  const r100Filled = (() => { const v = rv(100); return v !== '' && v !== null && v !== undefined && Number(v) !== 0; })();
+  const r100Filled = (() => { const v = rv(100); return v !== '' && v !== null && v !== undefined; })();
   const tabF_r01 = fmtDec(rv(560));
   const tabF_r02 = fmtDec(rv(561));
   const tabF_r03 = r100Filled ? '' : (tabF_r01 && tabF_r02 ? fmtDec(parseFloat(String(rv(560)).replace(',','.')) - parseFloat(String(rv(561)).replace(',','.'))) : fmtDec(rv(562)));
@@ -691,14 +703,17 @@ function generateXml(header, rows, tabARows, tabBRows) {
   }
   xml += '\t\t</vynosyZoStatnychDlhopisov>\n';
 
-  xml += '\t\t<c7paragraf50>0</c7paragraf50>\n';
+  const vy = (currentData && currentData.vyhlasenie) ? currentData.vyhlasenie : { neuplatnujemPar50: true, c7ico: '', c7obchodneMeno: '' };
+  const c7r1Base = parseFloat(String(rv(1080)).replace(',','.')) || parseFloat(String(rv(1050)).replace(',','.')) || 0;
+  const c7r4Val = vy.neuplatnujemPar50 ? '' : (c7r1Base ? (Math.round(c7r1Base * 0.01 * 100) / 100).toFixed(2) : '');
+  const c7prijimatelSuma = (!vy.neuplatnujemPar50 && vy.c7ico && c7r4Val) ? c7r4Val : '';
+  xml += '\t\t<c7paragraf50>'+ (vy.neuplatnujemPar50 ? '1' : '0') +'</c7paragraf50>\n';
   xml += '\t\t<suhlasZasl>0</suhlasZasl>\n';
-  xml += '\t\t<c7r1>'+esc(fmtDec(rv(1050)))+'</c7r1>\n';
-  xml += '\t\t<c7r2></c7r2>\n\t\t<c7r3></c7r3>\n\t\t<c7r4></c7r4>\n';
+  xml += '\t\t<c7r1>'+ (vy.neuplatnujemPar50 ? '' : esc(fmtDec(c7r1Base || rv(1080) || rv(1050)))) +'</c7r1>\n';
+  xml += '\t\t<c7r2></c7r2>\n\t\t<c7r3></c7r3>\n';
+  xml += '\t\t<c7r4>'+esc(c7r4Val)+'</c7r4>\n';
   xml += '\t\t<c7r5>1</c7r5>\n';
-
-  const c7suma = fmtDec(rv(1050)) || '0.00';
-  xml += '\t\t<c7prijimatel1>\n\t\t\t<suma>'+esc(c7suma)+'</suma>\n\t\t\t<ico></ico>\n\t\t\t<obchodneMeno>\n\t\t\t\t<riadok></riadok>\n\t\t\t\t<riadok></riadok>\n\t\t\t</obchodneMeno>\n\t\t</c7prijimatel1>\n';
+  xml += '\t\t<c7prijimatel1>\n\t\t\t<suma>'+esc(c7prijimatelSuma)+'</suma>\n\t\t\t<ico>'+esc(vy.c7ico || '')+'</ico>\n\t\t\t<obchodneMeno>\n\t\t\t\t<riadok>'+esc(vy.c7obchodneMeno || '')+'</riadok>\n\t\t\t\t<riadok></riadok>\n\t\t\t</obchodneMeno>\n\t\t</c7prijimatel1>\n';
 
   xml += '\t\t<osobitneZaznamy><![CDATA['+(h.osobitneZaznamy ?? '')+']]></osobitneZaznamy>\n';
 
@@ -756,7 +771,7 @@ function generateXml(header, rows, tabARows, tabBRows) {
 // =====================================================================
 let currentData = null;
 let generatedXml = '';
-const STEP_ORDER = ['upload','data','header','osoba','xml'];
+const STEP_ORDER = ['upload','data','header','osoba','vyhlasenie','xml'];
 
 function goStep(name) {
   // Hide all pages
@@ -775,6 +790,7 @@ function goStep(name) {
   if (name === 'data' && currentData) renderDataTab();
   if (name === 'header' && currentData) renderHeaderTab();
   if (name === 'osoba' && currentData) renderOsobaTab();
+  if (name === 'vyhlasenie' && currentData) renderVyhlasenieTab();
   if (name === 'xml') renderXmlTab();
 }
 
@@ -972,6 +988,39 @@ function renderOsobaTab() {
     inp.addEventListener('input', function() {
       if (currentData && currentData.header && this.dataset.field) currentData.header[this.dataset.field] = this.value;
     });
+  });
+}
+
+function renderVyhlasenieTab() {
+  if (!currentData.vyhlasenie) currentData.vyhlasenie = { neuplatnujemPar50: true, c7ico: '', c7obchodneMeno: '' };
+  const vy = currentData.vyhlasenie;
+  const rows = currentData.rows || {};
+  const r1080 = rows[1080] !== undefined && rows[1080] !== '' ? parseFloat(String(rows[1080]).replace(',','.')) : (rows[1050] !== undefined && rows[1050] !== '' ? parseFloat(String(rows[1050]).replace(',','.')) : 0);
+  const r1Text = isNaN(r1080) || r1080 === 0 ? '' : (Math.round(r1080 * 100) / 100).toFixed(2);
+  const r4Text = r1080 && !isNaN(r1080) ? (Math.round(r1080 * 0.01 * 100) / 100).toFixed(2) : '';
+  let html = '';
+  html += '<div class="section"><div class="section-header"><span class="section-tag">VII</span><span class="section-title">Vyhlásenie o poukázaní podielu zaplatenej dane (§ 50)</span></div>';
+  html += '<div class="section-body">';
+  html += '<div class="check-item" style="margin-bottom:16px"><label class="field" style="flex-direction:row;align-items:center;gap:10px;cursor:pointer">';
+  html += '<input type="checkbox" id="vyhNeuplatnujem" '+(vy.neuplatnujemPar50?'checked':'')+' style="width:auto"> ';
+  html += '<span>Neuplatňujem postup podľa § 50 zákona</span></label></div>';
+  html += '<p style="color:var(--muted);font-size:12px;margin-bottom:20px">Ak je zaškrtnuté, VII. časť bude v XML prázdna (riadky 1–4 a prijímateľ). Ak odškrtnete, vyplňte IČO a názov prijímateľa; daň (r. 1) a 1% (r. 4) sa doplnia automaticky.</p>';
+  html += '<div id="vyhlasenieFields" style="'+(vy.neuplatnujemPar50?'display:none':'')+'">';
+  html += '<div class="grid grid-2" style="margin-bottom:16px">';
+  html += '<div class="field"><label>R. 1 – Daň (z r. 1080)</label><input type="text" value="'+esc(r1Text)+'" readonly></div>';
+  html += '<div class="field"><label>R. 4 – Suma do výšky 1% z r. 1</label><input type="text" value="'+esc(r4Text)+'" readonly></div>';
+  html += '</div>';
+  html += '<div class="grid grid-2">';
+  html += '<div class="field"><label>IČO prijímateľa</label><input type="text" data-vy="c7ico" value="'+esc(vy.c7ico||'')+'" placeholder="IČO"></div>';
+  html += '<div class="field"><label>Obchodné meno / názov organizácie</label><input type="text" data-vy="c7obchodneMeno" value="'+esc(vy.c7obchodneMeno||'')+'" placeholder="Názov"></div>';
+  html += '</div></div>';
+  html += '</div></div>';
+  document.getElementById('vyhlasenieContent').innerHTML = html;
+  const cb = document.getElementById('vyhNeuplatnujem');
+  const block = document.getElementById('vyhlasenieFields');
+  if (cb) cb.addEventListener('change', function() { currentData.vyhlasenie.neuplatnujemPar50 = this.checked; block.style.display = this.checked ? 'none' : 'block'; });
+  document.getElementById('vyhlasenieContent').querySelectorAll('input[data-vy]').forEach(function(inp) {
+    inp.addEventListener('input', function() { if (currentData.vyhlasenie && this.dataset.vy) currentData.vyhlasenie[this.dataset.vy] = this.value; });
   });
 }
 
