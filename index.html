@@ -30,7 +30,7 @@ header{
   position:sticky;top:0;z-index:100;
 }
 .logo-wrap{display:flex;align-items:center;gap:14px}
-.header-logo{height:36px;width:auto;display:block}
+.header-logo{height:36px;width:auto;min-width:95px;aspect-ratio:1000/377.73;display:block;flex-shrink:0;vertical-align:middle}
 .logo-divider{width:1px;height:24px;background:rgba(175,250,150,.25)}
 .logo-label{font-size:11px;font-weight:600;color:rgba(175,250,150,.7);letter-spacing:.06em;text-transform:uppercase}
 .badge{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:var(--green);color:var(--purple);padding:4px 12px;border-radius:20px}
@@ -165,7 +165,7 @@ label.btn input[type="file"]{display:none}
 
 <header>
   <div class="logo-wrap">
-    <svg class="header-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 377.73" role="img" aria-label="Helwitax">
+    <svg class="header-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 377.73" width="95" height="36" role="img" aria-label="Helwitax">
       <path fill="#affa96" d="M758.7,165.66c-8.44-7.09-19.53-10.63-33.28-10.63-8.79,0-16.63,1.42-23.5,4.25-6.88,2.84-12.48,6.84-16.8,12.02-4.33,5.18-7.06,10.95-8.19,17.33l25.95,5.95c1.13-5.81,3.69-10.24,7.66-13.29,3.97-3.05,9-4.57,15.1-4.57s10.53,1.35,14.14,4.04c3.62,2.69,5.42,6.31,5.42,10.85,0,2.98-.89,5.21-2.66,6.7-1.77,1.49-4.57,2.38-8.4,2.66l-18.93,1.91c-11.91,1.14-21.8,4.43-29.67,9.89-7.87,5.46-11.8,13.72-11.8,24.78,0,6.24,1.52,11.73,4.57,16.48,3.05,4.75,7.26,8.37,12.65,10.85,5.39,2.48,11.48,3.72,18.29,3.72,8.22,0,15.63-1.77,22.23-5.32,5.49-2.95,10.05-6.74,13.72-11.36v14.55h26.16v-70.19c0-13.33-4.22-23.53-12.65-30.63ZM741.15,233.51c-2.69,4.25-6.31,7.69-10.85,10.32-4.54,2.63-9.5,3.93-14.89,3.93-4.82,0-8.61-1.1-11.38-3.3-2.76-2.2-4.15-5.21-4.15-9.04,0-3.54,1.35-6.45,4.04-8.72,2.69-2.27,6.38-3.69,11.06-4.25l19.35-2.34c3.97-.28,6.91-.85,8.83-1.7.76-.34,1.43-.75,2.02-1.25v2.95c0,4.68-1.35,9.15-4.04,13.4Z"/>
       <path fill="#affa96" d="M865.27,223.46c-6.16-5.1-11.2-8.24-15.61-10.48l41.23-55.6h-29.78l-31.67,46.32c-1.52-.96-3.08-2.08-4.72-3.42-8.7-7.17-16.81-42.37-16.81-42.37h-27.42s12.88,34.49,23.45,42.72c6.94,5.4,12.4,8.46,16.98,10.49l-41.06,55.36h29.99l31.51-46.3c1.27,1,2.58,2.18,3.96,3.63,7.63,8,18.64,42.37,18.64,42.37h26.58s-15.01-34.22-25.28-42.72Z"/>
       <path fill="#affa96" d="M109.11,166.46l.04,100.03h26.16v-67.73c0-.49-.01-6.02-.04-6.5-.59-11.89-14.8-21.96-26.16-25.81Z"/>
@@ -806,15 +806,15 @@ function generateXml(header, rows, tabARows, tabBRows) {
   const c7r1Base = parseFloat(String(rv(1080)).replace(',','.')) || parseFloat(String(rv(1050)).replace(',','.')) || 0;
   const c7r4Val = vy.neuplatnujemPar50 ? '' : (c7r1Base ? (Math.round(c7r1Base * 0.01 * 100) / 100).toFixed(2) : '');
   const c7prijimatelSuma = (!vy.neuplatnujemPar50 && c7r4Val) ? c7r4Val : '';
-  // Keď je neuplatňujem: c7paragraf50=1, r.1–r.5 a prijímateľ prázdne (inak portál môže brať c7r5=1 ako „1 prijímateľ“ a ignorovať neuplatňujem)
-  const c7r5Val = vy.neuplatnujemPar50 ? '' : '1';
+  // Keď je neuplatňujem: c7paragraf50=1, r.1–r.4 prázdne, c7r5=0 (počet prijímateľov 0), prijímateľ prázdny
+  const c7r5Val = vy.neuplatnujemPar50 ? '0' : '1';
   xml += '\t\t<c7paragraf50>'+ (vy.neuplatnujemPar50 ? '1' : '0') +'</c7paragraf50>\n';
   if (vy.neuplatnujemPar50) xml += '\t\t<!-- X neuplatňujem postup podľa § 50 zákona -->\n';
   xml += '\t\t<suhlasZasl>0</suhlasZasl>\n';
   xml += '\t\t<c7r1>'+ (vy.neuplatnujemPar50 ? '' : esc(fmtDec(c7r1Base || rv(1080) || rv(1050)))) +'</c7r1>\n';
   xml += '\t\t<c7r2></c7r2>\n\t\t<c7r3></c7r3>\n';
   xml += '\t\t<c7r4>'+esc(c7r4Val)+'</c7r4>\n';
-  xml += '\t\t<c7r5>'+esc(c7r5Val)+'</c7r5>\n';
+  xml += '\t\t<c7r5>'+c7r5Val+'</c7r5>\n';
   xml += '\t\t<c7prijimatel1>\n\t\t\t<suma>'+esc(c7prijimatelSuma)+'</suma>\n\t\t\t<ico>'+esc(vy.neuplatnujemPar50 ? '' : (vy.c7ico || ''))+'</ico>\n\t\t\t<obchodneMeno>\n\t\t\t\t<riadok>'+esc(vy.neuplatnujemPar50 ? '' : (vy.c7obchodneMeno || ''))+'</riadok>\n\t\t\t\t<riadok></riadok>\n\t\t\t</obchodneMeno>\n\t\t</c7prijimatel1>\n';
 
   xml += '\t\t<osobitneZaznamy><![CDATA['+(h.osobitneZaznamy ?? '')+']]></osobitneZaznamy>\n';
