@@ -681,7 +681,7 @@ function generateXml(header, rows, tabARows, tabBRows) {
 
   xml += '\t\t<c7prijimatel1>\n\t\t\t<suma></suma>\n\t\t\t<ico></ico>\n\t\t\t<obchodneMeno>\n\t\t\t\t<riadok></riadok>\n\t\t\t\t<riadok></riadok>\n\t\t\t</obchodneMeno>\n\t\t</c7prijimatel1>\n';
 
-  xml += '\t\t<osobitneZaznamy><![CDATA['+h.osobitneZaznamy+']]></osobitneZaznamy>\n';
+  xml += '\t\t<osobitneZaznamy><![CDATA['+(h.osobitneZaznamy ?? '')+']]></osobitneZaznamy>\n';
 
   xml += '\t\t<opravnenaOsoba>\n';
   xml += '\t\t\t<priezvisko>'+esc(h.priezvisko || '')+'</priezvisko>\n';
@@ -923,18 +923,16 @@ function renderOsobaTab() {
 
   html += '<div class="section"><div class="section-header"><span class="section-tag">Osoba</span><span class="section-title">Oprávnená osoba</span></div>';
   html += '<div class="section-body"><div class="grid grid-3">';
-  html += '<div class="field"><label>Priezvisko</label><input type="text" value="'+esc(h.priezvisko||'')+'" readonly></div>';
-  html += '<div class="field"><label>Meno</label><input type="text" value="'+esc(h.meno||'')+'" readonly></div>';
-  html += '<div class="field"><label>Titul</label><input type="text" value="'+esc(h.titul||'')+'" readonly></div>';
-  html += '<div class="field"><label>Titul za</label><input type="text" value="'+esc(h.titulZa||'')+'" readonly></div>';
-  html += '<div class="field"><label>Postavenie</label><input type="text" value="'+esc(h.postavenie||'')+'" readonly></div>';
+  html += '<div class="field"><label>Priezvisko</label><input type="text" data-field="priezvisko" value="'+esc(h.priezvisko||'')+'" placeholder="Priezvisko"></div>';
+  html += '<div class="field"><label>Meno</label><input type="text" data-field="meno" value="'+esc(h.meno||'')+'" placeholder="Meno"></div>';
+  html += '<div class="field"><label>Titul</label><input type="text" data-field="titul" value="'+esc(h.titul||'')+'" placeholder="Titul"></div>';
+  html += '<div class="field"><label>Titul za</label><input type="text" data-field="titulZa" value="'+esc(h.titulZa||'')+'" placeholder="Titul za"></div>';
+  html += '<div class="field"><label>Postavenie</label><input type="text" data-field="postavenie" value="'+esc(h.postavenie||'')+'" placeholder="Postavenie"></div>';
   html += '</div></div></div>';
 
   // Osobitné záznamy
   html += '<div class="section"><div class="section-header"><span class="section-tag">Pozn.</span><span class="section-title">Osobitné záznamy</span></div>';
   html += '<div class="section-body"><div class="field"><textarea readonly>'+esc(h.osobitneZaznamy||'(žiadne)')+'</textarea></div></div></div>';
-
-  // Prílohy a dátum
   html += '<div class="section"><div class="section-header"><span class="section-tag">Príl.</span><span class="section-title">Prílohy a dátum</span></div>';
   html += '<div class="section-body"><div class="grid grid-2">';
   html += '<div class="field"><label>Počet príloh</label><input type="text" value="'+esc(h.pocetPriloh||'')+'" readonly></div>';
@@ -942,6 +940,11 @@ function renderOsobaTab() {
   html += '</div></div></div>';
 
   document.getElementById('osobaContent').innerHTML = html;
+  document.getElementById('osobaContent').querySelectorAll('input[data-field]').forEach(function(inp) {
+    inp.addEventListener('input', function() {
+      if (currentData && currentData.header && this.dataset.field) currentData.header[this.dataset.field] = this.value;
+    });
+  });
 }
 
 function renderXmlTab() {
@@ -974,7 +977,8 @@ function doDownload() {
   }
   let fileName = 'DPPO_2025';
   if (currentData && currentData.header) {
-    const nazov = String(currentData.header.obchodneMeno || '').replace(/[\s\/\\:*?"<>|]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') || 'DPPO';
+    let nazov = String(currentData.header.obchodneMeno || '').replace(/[\s\/\\:*?"<>|]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') || 'DPPO';
+    nazov = nazov.replace(/_\d+$/, ''); // iba Názov Firmy, bez _46022 alebo iného čísla za názvom
     const datumDo = currentData.header.zdanObdDo || currentData.header.zdanObdOd || '';
     const rok = datumDo ? (datumDo.split('.').pop() || '').trim() : '';
     fileName = (nazov ? nazov + '_' : '') + 'DPPO_' + (rok || new Date().getFullYear());
