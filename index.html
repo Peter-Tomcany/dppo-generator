@@ -420,20 +420,18 @@ function parseExcelFile(arrayBuffer) {
     // Osobitné záznamy
     result.header.osobitneZaznamy = cv('C26') || '';
 
-    // Oprávnená osoba
+    // Oprávnená osoba (riadky 30–34 po vložení bloku na ZU)
     result.header.priezvisko = cv('C30') || '';
     result.header.meno = cv('C31') || '';
     result.header.titul = cv('C32') || '';
     result.header.titulZa = cv('C33') || '';
     result.header.postavenie = cv('C34') || '';
 
-    // Telefón a email
-    result.header.sidloTel = cv('C33') || '';
-    result.header.sidloEmail = cv('C34') || '';
-
-    // Počet príloh
-    result.header.pocetPriloh = cv('C35') || '';
-    result.header.datumVyhlasenia = fmtDate(cv('C36')) || '';
+    // Telefón, email, prílohy, dátum (posunuté nadol o 6 riadkov po bloku Oprávnená osoba)
+    result.header.sidloTel = cv('C39') || '';
+    result.header.sidloEmail = cv('C40') || '';
+    result.header.pocetPriloh = cv('C41') || '';
+    result.header.datumVyhlasenia = fmtDate(cv('C42')) || '';
 
     const zdanPrijmy = cv('C19');
     if (zdanPrijmy && typeof zdanPrijmy === 'number') result.rows[560] = zdanPrijmy;
