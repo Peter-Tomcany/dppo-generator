@@ -71,6 +71,10 @@ header{
 .section-tag{font-size:10px;font-weight:800;color:var(--purple);background:var(--green);padding:3px 9px;border-radius:20px;letter-spacing:.06em;text-transform:uppercase}
 .section-title{font-size:13px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--purple)}
 .section-body{padding:22px}
+.report-summary .report-table{width:100%;border-collapse:collapse;font-size:13px}
+.report-summary .report-table td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+.report-summary .report-table tr:last-child td{border-bottom:none}
+.report-summary .report-label{color:var(--muted);font-weight:600;width:42%;white-space:nowrap}
 
 /* ── GRID / FIELDS ── */
 .grid{display:grid;gap:16px}
@@ -227,7 +231,7 @@ label.btn input[type="file"]{display:none}
           ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
           <div class="icon">📊</div>
           <h2>Pretiahnite Excel súbor sem</h2>
-          <p>Použite súbor založený na šablóne <strong>ProStif_výpočet ZD_2025_vzor.xlsm</strong> (hárok Pomôcka k DP alebo DPPO export)</p>
+          <p>Použite súbor založený na šablóne <strong>Výpočet ZD_2025_v1.1.xlsm</strong> (made by Mgr. Ing. Tužinský, PhD.)</p>
           <label class="btn btn-primary" style="padding:13px 32px">Vybrať súbor
             <input type="file" accept=".xlsx,.xlsm,.xls" onchange="handleFileInput(event)">
           </label>
@@ -873,6 +877,68 @@ function generateXml(header, rows, tabARows, tabBRows) {
 // =====================================================================
 let currentData = null;
 let generatedXml = '';
+let reportGenerationTime = null;
+
+function getXmlFileName() {
+  let fileName = 'DPPO_' + DPPO_ROK;
+  if (currentData && currentData.header) {
+    const h = currentData.header;
+    let nazov = String(h.obchodneMeno || '').replace(/[\s\/\\:*?"<>|]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') || 'DPPO';
+    nazov = nazov.replace(/_\d+$/, '');
+    const datumDo = h.zdanObdDo || h.zdanObdOd || '';
+    let rok = datumDo ? (datumDo.split('.').pop() || '').trim() : '';
+    if (!/^\d{4}$/.test(rok)) rok = '';
+    fileName = (nazov ? nazov + '_' : '') + 'DPPO_' + (rok || DPPO_ROK);
+  }
+  return fileName;
+}
+
+function getReportData() {
+  if (!currentData || !generatedXml) return null;
+  const h = currentData.header || {};
+  const rows = currentData.rows || {};
+  const vy = currentData.vyhlasenie || { neuplatnujemPar50: true };
+  const rv = (n) => rows[n] ?? '';
+  const toNum = (v) => { const n = parseFloat(String(v).replace(',','.')); return isNaN(n) ? 0 : n; };
+  const fmt = (v) => (v !== '' && v !== null && v !== undefined) ? Number(toNum(v)).toFixed(2).replace('.', ',') : '—';
+
+  const r100 = toNum(rv(100));
+  const r1080 = toNum(rv(1080));
+  const r1100 = toNum(rv(1100));
+  const r1101 = toNum(rv(1101));
+  const danNaUhradu = r1100;
+  const ziskPredZdanenim = (r100 - danNaUhradu);
+
+  let par50Text = 'Neuplatňujem postup podľa § 50 zákona';
+  if (!vy.neuplatnujemPar50) {
+    const suma = r1080 ? (Math.round(r1080 * 0.01 * 100) / 100).toFixed(2).replace('.', ',') : '';
+    par50Text = '1 prijímateľ' + (suma ? ', suma ' + suma + ' EUR' : '');
+  }
+
+  return {
+    ico: h.ico || '—',
+    obchodneMeno: h.obchodneMeno || '—',
+    obdobieOd: h.zdanObdOd ? String(h.zdanObdOd).trim() : '—',
+    obdobieDo: h.zdanObdDo ? String(h.zdanObdDo).trim() : '—',
+    druhDP: 'Riadne',
+    r100: fmt(rv(100)),
+    r1080: fmt(rv(1080)),
+    r1100: fmt(rv(1100)),
+    r1101: fmt(rv(1101)),
+    r1010: fmt(rv(1010)),
+    r1020: fmt(rv(1020)),
+    r1030: fmt(rv(1030)),
+    r1040: fmt(rv(1040)),
+    ziskPredZdanenim: (r100 !== 0 || danNaUhradu !== 0) ? ziskPredZdanenim.toFixed(2).replace('.', ',') : '—',
+    par50Text: par50Text,
+    fileName: getXmlFileName() + '.xml',
+    generatedAt: reportGenerationTime ? (function(){
+      const d = reportGenerationTime;
+      return String(d.getDate()).padStart(2,'0') + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + d.getFullYear() + ' ' +
+             String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') + ':' + String(d.getSeconds()).padStart(2,'0');
+    })() : '—'
+  };
+}
 const STEP_ORDER = ['upload','data','header','osoba','vyhlasenie','xml'];
 
 function goStep(name) {
@@ -1165,6 +1231,32 @@ function renderXmlTab() {
     html += '<div class="info-box">XML bolo úspešne vygenerované. Pred stiahnutím sa vykoná kontrola štruktúry (dokument, hlavička, telo). Kliknite <strong>Stiahnuť XML súbor</strong> a importujte ho na portáli FS SR.</div>';
     html += '<div class="xml-output">'+esc(generatedXml)+'</div>';
     html += '</div></div>';
+
+    const rd = getReportData();
+    if (rd) {
+      html += '<div class="section report-summary"><div class="section-header"><span class="section-tag">Zhrnutie</span><span class="section-title">Report pre archív</span></div>';
+      html += '<div class="section-body">';
+      html += '<table class="report-table"><tbody>';
+      html += '<tr><td class="report-label">IČO</td><td>'+esc(rd.ico)+'</td></tr>';
+      html += '<tr><td class="report-label">Obchodné meno</td><td>'+esc(rd.obchodneMeno)+'</td></tr>';
+      html += '<tr><td class="report-label">Zdaňovacie obdobie</td><td>'+esc(rd.obdobieOd)+' – '+esc(rd.obdobieDo)+'</td></tr>';
+      html += '<tr><td class="report-label">Druh DP</td><td>'+esc(rd.druhDP)+'</td></tr>';
+      html += '<tr><td class="report-label">Výsledok hospodárenia (Tab F, r.100)</td><td>'+esc(rd.r100)+' EUR</td></tr>';
+      html += '<tr><td class="report-label">Zisk pred zdanením (r.100 − daň na úhradu)</td><td>'+esc(rd.ziskPredZdanenim)+' EUR</td></tr>';
+      html += '<tr><td class="report-label">Celková daň (r.1080)</td><td>'+esc(rd.r1080)+' EUR</td></tr>';
+      html += '<tr><td class="report-label">Daň na úhradu (r.1100)</td><td>'+esc(rd.r1100)+' EUR</td></tr>';
+      html += '<tr><td class="report-label">Daňový preplatok (r.1101)</td><td>'+esc(rd.r1101)+' EUR</td></tr>';
+      html += '<tr><td class="report-label">Preddavky – zaplatené §42 (r.1010)</td><td>'+esc(rd.r1010)+' EUR</td></tr>';
+      html += '<tr><td class="report-label">Preddavky – z min. obdobia (r.1020)</td><td>'+esc(rd.r1020)+' EUR</td></tr>';
+      html += '<tr><td class="report-label">Preddavky – daň zrazená §43 (r.1030)</td><td>'+esc(rd.r1030)+' EUR</td></tr>';
+      html += '<tr><td class="report-label">Celkové preddavky (r.1040)</td><td>'+esc(rd.r1040)+' EUR</td></tr>';
+      html += '<tr><td class="report-label">VII. časť §50</td><td>'+esc(rd.par50Text)+'</td></tr>';
+      html += '<tr><td class="report-label">Názov súboru</td><td>'+esc(rd.fileName)+'</td></tr>';
+      html += '<tr><td class="report-label">Dátum a čas generovania</td><td>'+esc(rd.generatedAt)+'</td></tr>';
+      html += '</tbody></table>';
+      html += '<div class="btn-row" style="margin-top:16px"><button type="button" class="btn btn-secondary" onclick="doDownloadReport()">Stiahnuť report</button></div>';
+      html += '</div></div>';
+    }
   } else {
     html += '<div class="section"><div class="section-body" style="text-align:center;padding:60px;color:var(--muted)">XML ešte nebolo vygenerované.</div></div>';
   }
@@ -1238,6 +1330,7 @@ function doGenerate() {
     return;
   }
   generatedXml = generateXml(currentData.header, currentData.rows, currentData.tabARows, currentData.tabBRows);
+  reportGenerationTime = new Date();
   goStep('xml');
 }
 
@@ -1271,6 +1364,43 @@ function validateXmlWellFormedAndStructure(xmlStr) {
   }
 }
 
+function doDownloadReport() {
+  const rd = getReportData();
+  if (!rd) {
+    alert('Žiadne dáta na report. Najprv vygenerujte XML.');
+    return;
+  }
+  const title = 'DPPO – Zhrnutie | ' + (rd.obchodneMeno !== '—' ? rd.obchodneMeno : 'Report');
+  let body = '<h1>Zhrnutie DPPO</h1><table><tbody>';
+  body += '<tr><td>IČO</td><td>'+esc(rd.ico)+'</td></tr>';
+  body += '<tr><td>Obchodné meno</td><td>'+esc(rd.obchodneMeno)+'</td></tr>';
+  body += '<tr><td>Zdaňovacie obdobie</td><td>'+esc(rd.obdobieOd)+' – '+esc(rd.obdobieDo)+'</td></tr>';
+  body += '<tr><td>Druh DP</td><td>'+esc(rd.druhDP)+'</td></tr>';
+  body += '<tr><td>Výsledok hospodárenia (Tab F, r.100)</td><td>'+esc(rd.r100)+' EUR</td></tr>';
+  body += '<tr><td>Zisk pred zdanením (r.100 − daň na úhradu)</td><td>'+esc(rd.ziskPredZdanenim)+' EUR</td></tr>';
+  body += '<tr><td>Celková daň (r.1080)</td><td>'+esc(rd.r1080)+' EUR</td></tr>';
+  body += '<tr><td>Daň na úhradu (r.1100)</td><td>'+esc(rd.r1100)+' EUR</td></tr>';
+  body += '<tr><td>Daňový preplatok (r.1101)</td><td>'+esc(rd.r1101)+' EUR</td></tr>';
+  body += '<tr><td>Preddavky – zaplatené §42 (r.1010)</td><td>'+esc(rd.r1010)+' EUR</td></tr>';
+  body += '<tr><td>Preddavky – z min. obdobia (r.1020)</td><td>'+esc(rd.r1020)+' EUR</td></tr>';
+  body += '<tr><td>Preddavky – daň zrazená §43 (r.1030)</td><td>'+esc(rd.r1030)+' EUR</td></tr>';
+  body += '<tr><td>Celkové preddavky (r.1040)</td><td>'+esc(rd.r1040)+' EUR</td></tr>';
+  body += '<tr><td>VII. časť §50</td><td>'+esc(rd.par50Text)+'</td></tr>';
+  body += '<tr><td>Názov súboru XML</td><td>'+esc(rd.fileName)+'</td></tr>';
+  body += '<tr><td>Dátum a čas generovania</td><td>'+esc(rd.generatedAt)+'</td></tr>';
+  body += '</tbody></table><p style="margin-top:24px;font-size:12px;color:#666">Generátor DPPO ' + DPPO_ROK + ' | Helwitax</p>';
+  const html = '<!DOCTYPE html><html lang="sk"><head><meta charset="UTF-8"><title>'+esc(title)+'</title><style>body{font-family:sans-serif;max-width:640px;margin:24px auto;padding:0 16px} table{width:100%;border-collapse:collapse} td{padding:8px 12px;border-bottom:1px solid #eee} td:first-child{color:#666;font-weight:600} h1{font-size:20px;margin-bottom:20px}</style></head><body>'+body+'</body></html>';
+  const blob = new Blob(['\uFEFF' + html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = getXmlFileName() + '_zhrnutie.html';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function doDownload() {
   if (!generatedXml) {
     alert('Najprv vygenerujte XML!');
@@ -1281,15 +1411,7 @@ function doDownload() {
     alert('Validácia XML zlyhala:\n\n' + val.errors.join('\n') + '\n\nOpravte dáta v Exceli a znova vygenerujte XML.');
     return;
   }
-  let fileName = 'DPPO_' + DPPO_ROK;
-  if (currentData && currentData.header) {
-    let nazov = String(currentData.header.obchodneMeno || '').replace(/[\s\/\\:*?"<>|]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') || 'DPPO';
-    nazov = nazov.replace(/_\d+$/, ''); // iba Názov Firmy, bez _46022 alebo iného čísla za názvom
-    const datumDo = currentData.header.zdanObdDo || currentData.header.zdanObdOd || '';
-    let rok = datumDo ? (datumDo.split('.').pop() || '').trim() : '';
-    if (!/^\d{4}$/.test(rok)) rok = ''; // iba 4-ciferný rok (nie Excel serial 46022)
-    fileName = (nazov ? nazov + '_' : '') + 'DPPO_' + (rok || DPPO_ROK);
-  }
+  const fileName = getXmlFileName();
   // UTF-8 s BOM (\uFEFF) kvôli korektnému zobrazeniu slovenských znakov v Exceli a iných nástrojoch
   const blob = new Blob(['\uFEFF' + generatedXml], {type:'text/xml;charset=utf-8'});
   const url = URL.createObjectURL(blob);
