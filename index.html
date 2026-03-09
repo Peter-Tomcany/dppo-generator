@@ -186,7 +186,7 @@ label.btn input[type="file"]{display:none}
     <div class="logo-label">DPPO 2025</div>
   </div>
   <div class="header-actions">
-    <a href="docs/Navod_pre_ucetnikov.docx" target="_blank" rel="noopener" class="badge" style="text-decoration:none;color:var(--purple);margin-right:8px" title="Návod pre účtovníkov">Návod (DOCX)</a>
+    <a href="docs/Navod_pre_uctovnikov.docx" target="_blank" rel="noopener" class="badge" style="text-decoration:none;color:var(--purple);margin-right:8px" title="Návod pre účtovníkov">Návod (DOCX)</a>
     <span class="badge" id="headerYearBadge">2025</span>
   </div>
 </header>
@@ -232,15 +232,15 @@ label.btn input[type="file"]{display:none}
           ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
           <div class="icon">📊</div>
           <h2>Pretiahnite Excel súbor sem</h2>
-          <p>Použite súbor založený na šablóne <strong>Výpočet ZD_2025_v1.1.xlsm</strong> (made by Mgr. Ing. Tužinský, PhD.)</p>
+          <p>Použite súbor založený na šablóne <strong>Výpočet ZD 2025_v. 1.1.xlsm</strong> (made by Mgr. Ing. Tužinský, PhD.)</p>
           <label class="btn btn-primary" style="padding:13px 32px">Vybrať súbor
             <input type="file" accept=".xlsx,.xlsm,.xls" onchange="handleFileInput(event)">
           </label>
           <div id="uploadedFileName" class="uploaded-file-name" style="display:none;margin-top:14px;font-size:13px;color:var(--muted);font-weight:600"></div>
         </div>
         <div class="info-box" style="margin-top:16px">
-          <a href="docs/Navod_pre_ucetnikov.docx" target="_blank" rel="noopener" style="color:var(--purple);font-weight:700">Návod pre účtovníkov (DOCX)</a> — odporúčame prečítať pred prvým použitím.<br><br>
-          Ak je v súbore hárok <strong>DPPO export</strong>, generátor z neho berie všetko (Tab F, prehľad ZU, oprávnená osoba, Tab B, riadky DP). Ak hárok chýba, načíta sa zo <strong>Základné údaje</strong>, <strong>Pomôcka k DP</strong> a <strong>Pomocné výpočty</strong>; Tab F môže byť prázdna, ak na ZU nie sú v bunkách C18/C20 čísla.
+          <a href="docs/Navod_pre_uctovnikov.docx" target="_blank" rel="noopener" style="color:var(--purple);font-weight:700">Návod pre účtovníkov (DOCX)</a> — odporúčame prečítať pred prvým použitím.<br><br>
+          Ak je v súbore hárok <strong>DPPO export</strong>, generátor z neho berie všetko (Tab F, prehľad ZU, oprávnená osoba, Tab B, riadky DP). Preddavky od budúceho roka môžete mať v bunkách <strong>B24</strong> (štvrťročné) a <strong>B25</strong> (mesačné); ak nie sú vyplnené, berú sa z hárka Úprava ZD. Ak hárok chýba, načíta sa zo <strong>Základné údaje</strong>, <strong>Pomôcka k DP</strong> a <strong>Pomocné výpočty</strong>; Tab F môže byť prázdna, ak na ZU nie sú v bunkách C18/C20 čísla.
           Všetky polia sú len na čítanie — dáta sa menia výhradne v Exceli.
         </div>
       </div>
@@ -538,6 +538,11 @@ function parseExcelFile(arrayBuffer) {
       var v = parseNumFromCell(sheetExport, tbCells[t]);
       if (v !== null) result.tabBRows[tbKeys[t]] = v;
     }
+    // Preddavky od budúceho roka – mapovanie z DPPO export (B24 = štvrťročné, B25 = mesačné)
+    var expStv = parseNumFromCell(sheetExport, 'B24');
+    var expMes = parseNumFromCell(sheetExport, 'B25');
+    if (expStv !== null && !isNaN(expStv)) result.header.preddavkyBuduciRok = expStv;
+    if (expMes !== null && !isNaN(expMes)) result.header.preddavkyBuduciRokMesacne = expMes;
   }
   // do XML idú len čísla
   function toNum(x) {
@@ -550,7 +555,7 @@ function parseExcelFile(arrayBuffer) {
   if (numV !== null) result.rows[560] = numV;
   if (numN !== null) result.rows[561] = numN;
 
-  // --- Úprava ZD: štvrťročné a mesačné preddavky na daň (riadok s textom v stĺpci B, hodnota v H)
+  // --- Úprava ZD: štvrťročné a mesačné preddavky (záloha, ak nie sú v DPPO export B24/B25)
   var upravaSheetName = wb.SheetNames.find(function(n){
     var t = String(n).toLowerCase().replace(/\u00fa/g,'u').replace(/\u00da/g,'u');
     return t.indexOf('uprava') >= 0 && t.indexOf('zd') >= 0;
@@ -563,8 +568,8 @@ function parseExcelFile(arrayBuffer) {
       var excelRow = ur + 1;
       var hVal = parseNumFromCell(upravaSheet, 'H' + excelRow);
       if (hVal !== null && !isNaN(hVal)) {
-        if (/štvrťročné\s*preddavky/i.test(label)) result.header.preddavkyBuduciRok = hVal;
-        else if (/mesa[cč]n[eé]?\s*preddavky|mesacne\s*preddavky/i.test(label)) result.header.preddavkyBuduciRokMesacne = hVal;
+        if (!result.header.preddavkyBuduciRok && /štvrťročné\s*preddavky/i.test(label)) result.header.preddavkyBuduciRok = hVal;
+        else if (!result.header.preddavkyBuduciRokMesacne && /mesa[cč]n[eé]?\s*preddavky|mesacne\s*preddavky/i.test(label)) result.header.preddavkyBuduciRokMesacne = hVal;
       }
     }
   }
@@ -957,6 +962,24 @@ function getReportData() {
   const preddavkyBrFmt = (preddavkyBr !== undefined && preddavkyBr !== null && preddavkyBr !== '') ? Number(parseFloat(String(preddavkyBr).replace(',','.'))).toFixed(2).replace('.', ',') : '—';
   const preddavkyBrMesFmt = (preddavkyBrMes !== undefined && preddavkyBrMes !== null && preddavkyBrMes !== '') ? Number(parseFloat(String(preddavkyBrMes).replace(',','.'))).toFixed(2).replace('.', ',') : '—';
 
+  var r1010n = toNum(rv(1010)), r1020n = toNum(rv(1020)), r1030n = toNum(rv(1030)), r1040n = toNum(rv(1040));
+  var showPreddavky = (r1010n !== 0 || r1020n !== 0 || r1030n !== 0 || r1040n !== 0);
+
+  var r1110Val = toNum(rv(1110));
+  var rokPreddavky = DPPO_ROK + 1;
+  var preddavkyObligationText = '';
+  if (r1110Val <= 5000) {
+    preddavkyObligationText = 'Daňovník nie je povinný platiť preddavky na daň (r.1110 ≤ 5 000 €).';
+  } else if (r1110Val > 16600) {
+    var sumMes = (preddavkyBrMes !== undefined && preddavkyBrMes !== null && preddavkyBrMes !== '') ? parseFloat(String(preddavkyBrMes).replace(',','.')) : Math.round(r1110Val / 12 * 100) / 100;
+    var sumMesFmt = formatReportNumber(sumMes.toFixed(2).replace('.', ','));
+    preddavkyObligationText = 'Vznikla povinnosť platiť mesačné preddavky na daň vo výške ' + sumMesFmt + ' € (1/12 z r.1110, splatnosť do konca príslušného kalendárneho mesiaca).';
+  } else {
+    var sumStv = (preddavkyBr !== undefined && preddavkyBr !== null && preddavkyBr !== '') ? parseFloat(String(preddavkyBr).replace(',','.')) : Math.round(r1110Val / 4 * 100) / 100;
+    var sumStvFmt = formatReportNumber(sumStv.toFixed(2).replace('.', ','));
+    preddavkyObligationText = 'Vznikla povinnosť platiť štvrťročné preddavky na daň vo výške ' + sumStvFmt + ' € (¼ z r.1110, splatnosť do konca príslušného kalendárneho štvrťroka).';
+  }
+
   return {
     ico: h.ico || '—',
     obchodneMeno: h.obchodneMeno || '—',
@@ -971,9 +994,13 @@ function getReportData() {
     r1020: formatReportNumber(fmt(rv(1020))),
     r1030: formatReportNumber(fmt(rv(1030))),
     r1040: formatReportNumber(fmt(rv(1040))),
+    r1110: formatReportNumber(fmt(rv(1110))),
+    showPreddavky: showPreddavky,
     ziskPredZdanenim: (r100 !== 0 || danNaUhradu !== 0) ? formatReportNumber(ziskPredZdanenim.toFixed(2).replace('.', ',')) : '—',
     preddavkyBuduciRok: formatReportNumber(preddavkyBrFmt),
     preddavkyBuduciRokMesacne: formatReportNumber(preddavkyBrMesFmt),
+    preddavkyObligationText: preddavkyObligationText,
+    rokPreddavky: rokPreddavky,
     par50Text: par50Text,
     fileName: getXmlFileName() + '.xml',
     generatedAt: reportGenerationTime ? (function(){
@@ -1272,7 +1299,7 @@ function renderXmlTab() {
   if (generatedXml) {
     html += '<div class="section"><div class="section-header"><span class="section-tag">XML</span><span class="section-title">Vygenerovaný XML súbor</span></div>';
     html += '<div class="section-body">';
-    html += '<div class="info-box">XML bolo úspešne vygenerované. Pred stiahnutím sa vykoná kontrola štruktúry (dokument, hlavička, telo). Kliknite <strong>Stiahnuť XML súbor</strong> a importujte ho na portáli FS SR.</div>';
+    html += '<div class="info-box">XML bolo úspešne vygenerované. Pred stiahnutím sa vykoná validácia štruktúry a pravidiel schémy (XSD): povinné elementy, formáty IČO/DIČ, dátumov a čísel. Kliknite <strong>Stiahnuť XML súbor</strong> a importujte ho na portáli FS SR.</div>';
     html += '<div class="xml-output">'+esc(generatedXml)+'</div>';
     html += '</div></div>';
 
@@ -1290,17 +1317,21 @@ function renderXmlTab() {
       html += '<tr><td class="report-label">Celková daň (r.1080)</td><td>'+esc(rd.r1080)+' EUR</td></tr>';
       html += '<tr><td class="report-label">Daň na úhradu (r.1100)</td><td>'+esc(rd.r1100)+' EUR</td></tr>';
       html += '<tr><td class="report-label">Daňový preplatok (r.1101)</td><td>'+esc(rd.r1101)+' EUR</td></tr>';
-      html += '<tr><td class="report-label">Preddavky – zaplatené §42 (r.1010)</td><td>'+esc(rd.r1010)+' EUR</td></tr>';
-      html += '<tr><td class="report-label">Preddavky – z min. obdobia (r.1020)</td><td>'+esc(rd.r1020)+' EUR</td></tr>';
-      html += '<tr><td class="report-label">Preddavky – daň zrazená §43 (r.1030)</td><td>'+esc(rd.r1030)+' EUR</td></tr>';
-      html += '<tr><td class="report-label">Celkové preddavky (r.1040)</td><td>'+esc(rd.r1040)+' EUR</td></tr>';
+      if (rd.showPreddavky) {
+        html += '<tr><td class="report-label">Daň na účely preddavkov §42 (r.1110)</td><td>'+esc(rd.r1110)+' EUR</td></tr>';
+        html += '<tr><td class="report-label">Preddavky – zaplatené §42 (r.1010)</td><td>'+esc(rd.r1010)+' EUR</td></tr>';
+        html += '<tr><td class="report-label">Preddavky – z min. obdobia (r.1020)</td><td>'+esc(rd.r1020)+' EUR</td></tr>';
+        html += '<tr><td class="report-label">Preddavky – daň zrazená §43 (r.1030)</td><td>'+esc(rd.r1030)+' EUR</td></tr>';
+        html += '<tr><td class="report-label">Celkové preddavky (r.1040)</td><td>'+esc(rd.r1040)+' EUR</td></tr>';
+      }
       if (rd.preddavkyBuduciRok !== '—') html += '<tr><td class="report-label">Preddavky od budúceho roka (štvrťročné)</td><td>'+esc(rd.preddavkyBuduciRok)+' EUR</td></tr>';
       if (rd.preddavkyBuduciRokMesacne !== '—') html += '<tr><td class="report-label">Preddavky od budúceho roka (mesačné)</td><td>'+esc(rd.preddavkyBuduciRokMesacne)+' EUR</td></tr>';
+      html += '<tr><td class="report-label">Platenie preddavkov na daň z príjmov PO v roku '+rd.rokPreddavky+'</td><td>'+esc(rd.preddavkyObligationText)+'</td></tr>';
       html += '<tr><td class="report-label">VII. časť §50</td><td>'+esc(rd.par50Text)+'</td></tr>';
       html += '<tr><td class="report-label">Názov súboru</td><td>'+esc(rd.fileName)+'</td></tr>';
       html += '<tr><td class="report-label">Dátum a čas generovania</td><td>'+esc(rd.generatedAt)+'</td></tr>';
       html += '</tbody></table>';
-      html += '<div class="btn-row" style="margin-top:16px"><button type="button" class="btn btn-green" onclick="doDownloadReportPdf()">Stiahnuť report (PDF)</button><button type="button" class="btn btn-secondary" onclick="doDownloadReport()">Stiahnuť report (HTML)</button></div>';
+      html += '<div class="btn-row" style="margin-top:16px"><button type="button" class="btn btn-green" onclick="doDownloadReportPdf()">Stiahnuť report (PDF)</button></div>';
       html += '</div></div>';
     }
   } else {
@@ -1410,6 +1441,84 @@ function validateXmlWellFormedAndStructure(xmlStr) {
   }
 }
 
+function validateXmlAgainstXsdRules(xmlStr) {
+  const errs = [];
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlStr, 'text/xml');
+  if (doc.querySelector('parsererror')) return { ok: true, errors: [] };
+  const root = doc.documentElement;
+  if (!root || root.nodeName !== 'dokument') return { ok: true, errors: [] };
+  const hlavicka = root.querySelector('hlavicka');
+  const telo = root.querySelector('telo');
+  const q = (parent, name) => parent ? parent.querySelector(name) : null;
+  const text = (el) => (el && el.textContent !== undefined) ? String(el.textContent).trim() : '';
+
+  function only01(el, label) {
+    if (!el) return;
+    const v = text(el);
+    if (v !== '' && v !== '0' && v !== '1') errs.push(label + ': musí byť 0 alebo 1 (je "' + v + '").');
+  }
+  function oneFieldDate(el, label) {
+    if (!el) return;
+    const v = text(el);
+    if (v && !/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(v)) errs.push(label + ': neplatný formát dátumu (očakáva sa dd.mm.yyyy).');
+  }
+  function optDec(el, label) {
+    if (!el) return;
+    const v = text(el);
+    if (v === '') return;
+    if (!/^-?\d{1,13}(\.\d{1,2})?$/.test(v) || isNaN(parseFloat(v))) errs.push(label + ': neplatná číselná hodnota (max. 13 číslic, 2 desatinné miesta).');
+  }
+  function required(parent, tagName, label) {
+    const el = q(parent, tagName);
+    if (!el && parent) errs.push('Chýba povinný element: ' + (label || tagName) + '.');
+  }
+
+  if (hlavicka) {
+    required(hlavicka, 'dic', '<dic>');
+    required(hlavicka, 'ico', '<ico>');
+    required(hlavicka, 'pravnaForma', '<pravnaForma>');
+    const typDP = q(hlavicka, 'typDP');
+    if (typDP) {
+      only01(q(typDP, 'rdp'), 'typDP/rdp');
+      only01(q(typDP, 'odp'), 'typDP/odp');
+      only01(q(typDP, 'ddp'), 'typDP/ddp');
+    }
+    const zo = q(hlavicka, 'zdanovacieObdobie');
+    if (zo) {
+      oneFieldDate(q(zo, 'od'), 'zdanovacieObdobie/od');
+      oneFieldDate(q(zo, 'do'), 'zdanovacieObdobie/do');
+    }
+    ['uplatnujemPar17', 'ukoncujemUplatnovaniePar17', 'obmedzenie', 'prepojenie', 'uplatnenieOslobodeniaPar13ab', 'mikrodanovnikPar2w', 'polovicnaVyskaDanePar46b3', 'neplatenieMinDanePar46b7', 'zapocitanieMinDanePar46b5'].forEach(function(name) {
+      only01(q(hlavicka, name), name);
+    });
+    const dicEl = q(hlavicka, 'dic');
+    if (dicEl && text(dicEl)) {
+      const d = text(dicEl).replace(/^SK/i, '').replace(/\s/g, '');
+      if (d.length !== 10 || !/^\d+$/.test(d)) errs.push('DIČ: musí mať 10 číslic (s voliteľnou predponou SK).');
+    }
+    const icoEl = q(hlavicka, 'ico');
+    if (icoEl && text(icoEl)) {
+      const i = text(icoEl).replace(/\s/g, '');
+      if (i.length !== 8 || !/^\d+$/.test(i)) errs.push('IČO: musí mať 8 číslic.');
+    }
+  }
+
+  if (telo) {
+    only01(q(telo, 'c7paragraf50'), 'c7paragraf50');
+    only01(q(telo, 'suhlasZasl'), 'suhlasZasl');
+    required(telo, 'opravnenaOsoba', '<opravnenaOsoba>');
+    const c7r5 = q(telo, 'c7r5');
+    if (c7r5) {
+      const v = text(c7r5);
+      if (v !== '' && v !== '0' && v !== '1' && !/^\d+$/.test(v)) errs.push('c7r5: musí byť celé číslo alebo prázdne.');
+    }
+    oneFieldDate(q(telo, 'datumVyhlasenia'), 'datumVyhlasenia');
+  }
+
+  return { ok: errs.length === 0, errors: errs };
+}
+
 function getReportRowsForPdf(rd) {
   var rows = [
     { label: 'IČO', value: rd.ico },
@@ -1420,14 +1529,18 @@ function getReportRowsForPdf(rd) {
     { label: 'Zisk pred zdanením (r.100 − daň na úhradu)', value: rd.ziskPredZdanenim + ' EUR' },
     { label: 'Celková daň (r.1080)', value: rd.r1080 + ' EUR' },
     { label: 'Daň na úhradu (r.1100)', value: rd.r1100 + ' EUR' },
-    { label: 'Daňový preplatok (r.1101)', value: rd.r1101 + ' EUR' },
-    { label: 'Preddavky – zaplatené §42 (r.1010)', value: rd.r1010 + ' EUR' },
-    { label: 'Preddavky – z min. obdobia (r.1020)', value: rd.r1020 + ' EUR' },
-    { label: 'Preddavky – daň zrazená §43 (r.1030)', value: rd.r1030 + ' EUR' },
-    { label: 'Celkové preddavky (r.1040)', value: rd.r1040 + ' EUR' }
+    { label: 'Daňový preplatok (r.1101)', value: rd.r1101 + ' EUR' }
   ];
+  if (rd.showPreddavky) {
+    rows.push({ label: 'Daň na účely preddavkov §42 (r.1110)', value: rd.r1110 + ' EUR' });
+    rows.push({ label: 'Preddavky – zaplatené §42 (r.1010)', value: rd.r1010 + ' EUR' });
+    rows.push({ label: 'Preddavky – z min. obdobia (r.1020)', value: rd.r1020 + ' EUR' });
+    rows.push({ label: 'Preddavky – daň zrazená §43 (r.1030)', value: rd.r1030 + ' EUR' });
+    rows.push({ label: 'Celkové preddavky (r.1040)', value: rd.r1040 + ' EUR' });
+  }
   if (rd.preddavkyBuduciRok !== '—') rows.push({ label: 'Preddavky od budúceho roka (štvrťročné)', value: rd.preddavkyBuduciRok + ' EUR' });
   if (rd.preddavkyBuduciRokMesacne !== '—') rows.push({ label: 'Preddavky od budúceho roka (mesačné)', value: rd.preddavkyBuduciRokMesacne + ' EUR' });
+  rows.push({ label: 'Platenie preddavkov na daň z príjmov právnickej osoby v roku ' + rd.rokPreddavky, value: rd.preddavkyObligationText });
   rows.push({ label: 'VII. časť §50', value: rd.par50Text });
   rows.push({ label: 'Názov súboru XML', value: rd.fileName });
   rows.push({ label: 'Dátum a čas generovania', value: rd.generatedAt });
@@ -1447,79 +1560,44 @@ function doDownloadReportPdf() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
-  const margin = 20;
+  const margin = 22;
   const col1X = margin;
-  const col2X = 100;
-  let y = 22;
+  const col2X = 105;
+  const labelMaxW = 78;
+  const lineH = 5.5;
+  let y = 28;
 
-  doc.setFontSize(18);
-  doc.setTextColor(175, 250, 150);
+  doc.setFontSize(20);
+  doc.setTextColor(50, 25, 65);
   doc.text('Helwitax', col1X, y);
-  y += 4;
+  y += 5;
   doc.setDrawColor(175, 250, 150);
-  doc.setLineWidth(0.5);
+  doc.setLineWidth(0.6);
   doc.line(col1X, y, pageW - margin, y);
-  y += 8;
-  doc.setFontSize(14);
+  y += 9;
+  doc.setFontSize(16);
   doc.setTextColor(50, 25, 65);
   doc.text('DPPO – Zhrnutie', col1X, y);
-  y += 10;
+  y += 11;
   doc.setFontSize(10);
-  doc.setTextColor(0, 0, 0);
+  doc.setTextColor(40, 40, 40);
 
   const reportRows = getReportRowsForPdf(rd);
+  const valueMaxW = pageW - margin - col2X - 5;
   for (var i = 0; i < reportRows.length; i++) {
-    if (y > 270) { doc.addPage(); y = 20; }
-    doc.setFont(undefined, 'normal');
-    doc.text(reportRows[i].label, col1X, y);
-    doc.text(reportRows[i].value, col2X, y);
-    y += 6;
+    if (y > 268) { doc.addPage(); y = 22; doc.setFontSize(10); doc.setTextColor(40, 40, 40); }
+    var lines = doc.splitTextToSize(reportRows[i].label, labelMaxW);
+    var valueLines = doc.splitTextToSize(reportRows[i].value, valueMaxW);
+    doc.text(lines, col1X, y);
+    doc.text(valueLines, col2X, y);
+    y += Math.max(lines.length, valueLines.length) * lineH + 1;
   }
-  y += 8;
+  y += 10;
   doc.setFontSize(9);
-  doc.setTextColor(100, 100, 100);
+  doc.setTextColor(50, 25, 65);
   doc.text('Generátor DPPO ' + DPPO_ROK + ' | Helwitax', col1X, y);
 
   doc.save(getXmlFileName() + '_zhrnutie.pdf');
-}
-
-function doDownloadReport() {
-  const rd = getReportData();
-  if (!rd) {
-    alert('Žiadne dáta na report. Najprv vygenerujte XML.');
-    return;
-  }
-  const title = 'DPPO – Zhrnutie | ' + (rd.obchodneMeno !== '—' ? rd.obchodneMeno : 'Report');
-  let body = '<h1>Zhrnutie DPPO</h1><table><tbody>';
-  body += '<tr><td>IČO</td><td>'+esc(rd.ico)+'</td></tr>';
-  body += '<tr><td>Obchodné meno</td><td>'+esc(rd.obchodneMeno)+'</td></tr>';
-  body += '<tr><td>Zdaňovacie obdobie</td><td>'+esc(rd.obdobieOd)+' – '+esc(rd.obdobieDo)+'</td></tr>';
-  body += '<tr><td>Druh DP</td><td>'+esc(rd.druhDP)+'</td></tr>';
-  body += '<tr><td>Výsledok hospodárenia (Tab F, r.100)</td><td>'+esc(rd.r100)+' EUR</td></tr>';
-  body += '<tr><td>Zisk pred zdanením (r.100 − daň na úhradu)</td><td>'+esc(rd.ziskPredZdanenim)+' EUR</td></tr>';
-  body += '<tr><td>Celková daň (r.1080)</td><td>'+esc(rd.r1080)+' EUR</td></tr>';
-  body += '<tr><td>Daň na úhradu (r.1100)</td><td>'+esc(rd.r1100)+' EUR</td></tr>';
-  body += '<tr><td>Daňový preplatok (r.1101)</td><td>'+esc(rd.r1101)+' EUR</td></tr>';
-  body += '<tr><td>Preddavky – zaplatené §42 (r.1010)</td><td>'+esc(rd.r1010)+' EUR</td></tr>';
-  body += '<tr><td>Preddavky – z min. obdobia (r.1020)</td><td>'+esc(rd.r1020)+' EUR</td></tr>';
-  body += '<tr><td>Preddavky – daň zrazená §43 (r.1030)</td><td>'+esc(rd.r1030)+' EUR</td></tr>';
-  body += '<tr><td>Celkové preddavky (r.1040)</td><td>'+esc(rd.r1040)+' EUR</td></tr>';
-  if (rd.preddavkyBuduciRok !== '—') body += '<tr><td>Preddavky od budúceho roka (štvrťročné)</td><td>'+esc(rd.preddavkyBuduciRok)+' EUR</td></tr>';
-  if (rd.preddavkyBuduciRokMesacne !== '—') body += '<tr><td>Preddavky od budúceho roka (mesačné)</td><td>'+esc(rd.preddavkyBuduciRokMesacne)+' EUR</td></tr>';
-  body += '<tr><td>VII. časť §50</td><td>'+esc(rd.par50Text)+'</td></tr>';
-  body += '<tr><td>Názov súboru XML</td><td>'+esc(rd.fileName)+'</td></tr>';
-  body += '<tr><td>Dátum a čas generovania</td><td>'+esc(rd.generatedAt)+'</td></tr>';
-  body += '</tbody></table><p style="margin-top:24px;font-size:12px;color:#666">Generátor DPPO ' + DPPO_ROK + ' | Helwitax</p>';
-  const html = '<!DOCTYPE html><html lang="sk"><head><meta charset="UTF-8"><title>'+esc(title)+'</title><style>body{font-family:sans-serif;max-width:640px;margin:24px auto;padding:0 16px} table{width:100%;border-collapse:collapse} td{padding:8px 12px;border-bottom:1px solid #eee} td:first-child{color:#666;font-weight:600} h1{font-size:20px;margin-bottom:20px}</style></head><body>'+body+'</body></html>';
-  const blob = new Blob(['\uFEFF' + html], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = getXmlFileName() + '_zhrnutie.html';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
 }
 
 function doDownload() {
@@ -1527,9 +1605,14 @@ function doDownload() {
     alert('Najprv vygenerujte XML!');
     return;
   }
-  const val = validateXmlWellFormedAndStructure(generatedXml);
-  if (!val.ok) {
-    alert('Validácia XML zlyhala:\n\n' + val.errors.join('\n') + '\n\nOpravte dáta v Exceli a znova vygenerujte XML.');
+  const val1 = validateXmlWellFormedAndStructure(generatedXml);
+  if (!val1.ok) {
+    alert('Validácia XML (štruktúra) zlyhala:\n\n' + val1.errors.join('\n') + '\n\nOpravte dáta v Exceli a znova vygenerujte XML.');
+    return;
+  }
+  const val2 = validateXmlAgainstXsdRules(generatedXml);
+  if (!val2.ok) {
+    alert('Validácia XML podľa pravidiel schémy (XSD) zlyhala:\n\n' + val2.errors.join('\n') + '\n\nOpravte dáta v Exceli a znova vygenerujte XML.');
     return;
   }
   const fileName = getXmlFileName();
