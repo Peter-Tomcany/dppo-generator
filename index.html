@@ -1519,101 +1519,343 @@ function validateXmlAgainstXsdRules(xmlStr) {
   return { ok: errs.length === 0, errors: errs };
 }
 
-function getReportRowsForPdf(rd) {
-  var rows = [
-    { label: 'IČO', value: rd.ico },
-    { label: 'Obchodné meno', value: rd.obchodneMeno },
-    { label: 'Zdaňovacie obdobie', value: rd.obdobieOd + ' – ' + rd.obdobieDo },
-    { label: 'Druh DP', value: rd.druhDP },
-    { label: 'Výsledok hospodárenia (Tab F, r.100)', value: rd.r100 + ' EUR' },
-    { label: 'Zisk po zdanení', value: rd.ziskPoZdaneni + ' EUR' },
-    { label: 'Celková daň (r.1080)', value: rd.r1080 + ' EUR' },
-    { label: 'Daň na úhradu (r.1100)', value: rd.r1100 + ' EUR' },
-    { label: 'Daňový preplatok (r.1101)', value: rd.r1101 + ' EUR' }
-  ];
-  if (rd.showPreddavky) {
-    rows.push({ label: 'Daň na účely preddavkov §42 (r.1110)', value: rd.r1110 + ' EUR' });
-    rows.push({ label: 'Preddavky – zaplatené §42 (r.1010)', value: rd.r1010 + ' EUR' });
-    rows.push({ label: 'Preddavky – z min. obdobia (r.1020)', value: rd.r1020 + ' EUR' });
-    rows.push({ label: 'Preddavky – daň zrazená §43 (r.1030)', value: rd.r1030 + ' EUR' });
-    rows.push({ label: 'Celkové preddavky (r.1040)', value: rd.r1040 + ' EUR' });
-  }
-  if (rd.preddavkyBuduciRok !== '—') rows.push({ label: 'Preddavky od budúceho roka (štvrťročné)', value: rd.preddavkyBuduciRok + ' EUR' });
-  if (rd.preddavkyBuduciRokMesacne !== '—') rows.push({ label: 'Preddavky od budúceho roka (mesačné)', value: rd.preddavkyBuduciRokMesacne + ' EUR' });
-  rows.push({ label: 'Platenie preddavkov na daň z príjmov právnickej osoby v roku ' + rd.rokPreddavky, value: rd.preddavkyObligationText });
-  rows.push({ label: 'VII. časť §50', value: rd.par50Text });
-  rows.push({ label: 'Názov súboru XML', value: rd.fileName });
-  rows.push({ label: 'Dátum a čas generovania', value: rd.generatedAt });
-  return rows;
-}
-
 function doDownloadReportPdf() {
   const rd = getReportData();
-  if (!rd) {
-    alert('Žiadne dáta na report. Najprv vygenerujte XML.');
-    return;
-  }
-  if (typeof window.jspdf === 'undefined') {
-    alert('Knižnica pre PDF nie je načítaná. Skontrolujte internetové pripojenie a obnovte stránku.');
-    return;
-  }
+  if (!rd) { alert('Žiadne dáta na report. Najprv vygenerujte XML.'); return; }
+  if (typeof window.jspdf === 'undefined') { alert('Knižnica pre PDF nie je načítaná. Skontrolujte internetové pripojenie a obnovte stránku.'); return; }
+
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const pageW = doc.internal.pageSize.getWidth();
-  const margin = 20;
-  const col1X = margin;
-  const col2X = 98;
-  const labelMaxW = 68;
-  const lineH = 5.8;
-  const lineHLong = 6.2;
-  let y = 26;
+  const W = doc.internal.pageSize.getWidth();
+  const H = doc.internal.pageSize.getHeight();
+  const ML = 14;
+  const MR = 14;
+  const CW = W - ML - MR;
 
-  doc.setFontSize(22);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(45, 20, 60);
-  doc.text('Helwitax', col1X, y);
-  doc.setFont('helvetica', 'normal');
-  y += 6;
-  doc.setDrawColor(175, 250, 150);
-  doc.setLineWidth(0.7);
-  doc.line(col1X, y, Math.min(col1X + 50, pageW - margin), y);
-  y += 8;
-  doc.setFontSize(17);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(45, 20, 60);
-  doc.text('DPPO – Zhrnutie', col1X, y);
-  doc.setFont('helvetica', 'normal');
-  y += 6;
-  doc.setDrawColor(200, 235, 210);
-  doc.setLineWidth(0.3);
-  doc.line(col1X, y, pageW - margin, y);
-  y += 10;
-  doc.setFontSize(10);
-  doc.setTextColor(50, 50, 50);
+  // ── Brand colors ──
+  const FIALOVA  = [50, 25, 65];
+  const FIALOVA2 = [60, 30, 70];
+  const ZELENA   = [175, 250, 150];
+  const WHITE    = [255, 255, 255];
+  const TEXT_SEC  = [107, 98, 120];
+  const TEXT_MUTED = [154, 145, 163];
+  const BORDER    = [232, 228, 236];
 
-  const reportRows = getReportRowsForPdf(rd);
-  const valueMaxW = pageW - margin - col2X - 8;
-  for (var i = 0; i < reportRows.length; i++) {
-    if (y > 265) { doc.addPage(); y = 24; doc.setFontSize(10); doc.setTextColor(50, 50, 50); }
-    var lines = doc.splitTextToSize(reportRows[i].label, labelMaxW);
-    var valueLines = doc.splitTextToSize(reportRows[i].value, valueMaxW);
-    var numLines = Math.max(lines.length, valueLines.length);
-    doc.setTextColor(70, 70, 75);
-    doc.text(lines, col1X, y);
-    doc.setTextColor(35, 35, 40);
-    doc.text(valueLines, col2X, y);
-    var isLongRow = reportRows[i].value.length > 60 || valueLines.length > 2;
-    y += numLines * (isLongRow ? lineHLong : lineH) + (isLongRow ? 2 : 1);
+  const sc = (c) => doc.setTextColor(c[0], c[1], c[2]);
+  const sf = (c) => doc.setFillColor(c[0], c[1], c[2]);
+  const sd = (c) => doc.setDrawColor(c[0], c[1], c[2]);
+
+  // ── Parse numeric values ──
+  const toNum = (v) => { const n = parseFloat(String(v).replace(/[^\d.,-]/g, '').replace(',', '.')); return isNaN(n) ? 0 : n; };
+  const r1110Num = toNum(rd.r1110);
+
+  let y = 0;
+
+  // ================================================================
+  // 1) COMPACT HERO — fialový header
+  // ================================================================
+  const heroH = 30;
+  sf(FIALOVA);
+  doc.rect(0, 0, W, heroH, 'F');
+  // Dekoratívne pruhy (motív cesty)
+  sf(FIALOVA2);
+  doc.rect(W - 30, 0, 5, heroH, 'F');
+  doc.rect(W - 20, 0, 5, heroH, 'F');
+  doc.rect(W - 10, 0, 5, heroH, 'F');
+
+  // Logo "helwitax"
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  sc(ZELENA);
+  doc.text('helwitax', ML, 8);
+  // Zelená linka pod logom
+  sf(ZELENA);
+  doc.rect(ML, 10.5, 22, 0.5, 'F');
+
+  // Company name
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  sc(WHITE);
+  doc.text(rd.obchodneMeno || '—', ML, 18.5);
+
+  // Meta row
+  doc.setFontSize(6);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(138, 127, 160);
+  doc.text('IČO ' + (rd.ico || '—') + '   •   ' + (rd.obdobieOd || '') + ' – ' + (rd.obdobieDo || '') + '   •   ' + (rd.druhDP || 'Riadne') + '   •   DPPO ' + DPPO_ROK, ML, 25);
+
+  // Zelená accent linka
+  sf(ZELENA);
+  doc.rect(0, heroH, W, 1, 'F');
+  y = heroH + 1;
+
+  // ================================================================
+  // 2) DAŇ NA ÚHRADU — bold label + veľké číslo
+  // ================================================================
+  y += 6;
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  sc(TEXT_SEC);
+  doc.text('DAŇ NA ÚHRADU', ML, y);
+  y += 6;
+  doc.setFontSize(24);
+  doc.setFont('helvetica', 'bold');
+  sc(FIALOVA);
+  doc.text(rd.r1100, ML, y);
+  var danW = doc.getTextWidth(rd.r1100);
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  sc(TEXT_MUTED);
+  doc.text('EUR', ML + danW + 3, y);
+  doc.setFontSize(6);
+  doc.text('(r.1100)', ML + danW + 16, y);
+  y += 4;
+
+  // Thin line
+  sd(BORDER);
+  doc.setLineWidth(0.2);
+  doc.line(ML, y, W - MR, y);
+  y += 4;
+
+  // ================================================================
+  // 3) VH + ZISK — dva boxy vedľa seba, bold labely s bodkou
+  // ================================================================
+  var boxW = (CW - 3) / 2;
+  var boxH = 26;
+
+  // VH box — fialový fill
+  sf(FIALOVA);
+  doc.roundedRect(ML, y, boxW, boxH, 2, 2, 'F');
+  // Zelená bodka
+  sf(ZELENA);
+  doc.circle(ML + 5, y + 5.5, 1.2, 'F');
+  // Bold label
+  doc.setFontSize(6.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(180, 170, 195);
+  doc.text('VÝSLEDOK HOSPODÁRENIA', ML + 8.5, y + 6.5);
+  // Veľké číslo
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  sc(ZELENA);
+  doc.text(rd.r100, ML + 4, y + 16.5);
+  // EUR + ref
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(138, 127, 160);
+  doc.text('EUR', ML + 4, y + 22.5);
+  doc.setFontSize(5.5);
+  doc.text('Tab F, r. 100', ML + 15, y + 22.5);
+
+  // Zisk box — zelený fill
+  var zx = ML + boxW + 3;
+  sf([232, 255, 224]);
+  sd(ZELENA);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(zx, y, boxW, boxH, 2, 2, 'FD');
+  // Fialová bodka
+  sf(FIALOVA);
+  doc.circle(zx + 5, y + 5.5, 1.2, 'F');
+  // Bold label
+  doc.setFontSize(6.5);
+  doc.setFont('helvetica', 'bold');
+  sc(TEXT_SEC);
+  doc.text('ZISK PO ZDANENÍ', zx + 8.5, y + 6.5);
+  // Veľké číslo
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  sc(FIALOVA);
+  doc.text(rd.ziskPoZdaneni, zx + 4, y + 16.5);
+  // EUR + ref
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  sc(TEXT_SEC);
+  doc.text('EUR', zx + 4, y + 22.5);
+  doc.setFontSize(5.5);
+  sc(TEXT_MUTED);
+  doc.text('VH − daň na úhradu', zx + 15, y + 22.5);
+
+  y += boxH + 7;
+
+  // ================================================================
+  // 4) VÝPOČET DANE — detail tabuľka
+  // ================================================================
+  // Section header: bodka + nadpis + čiara
+  sf(ZELENA);
+  doc.circle(ML + 1.5, y - 0.5, 1.2, 'F');
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  sc(FIALOVA);
+  doc.text('VÝPOČET DANE', ML + 5, y);
+  y += 2;
+  sf(FIALOVA);
+  doc.rect(ML, y, CW, 0.5, 'F');
+  y += 5;
+
+  function addRow(label, value, ref, isBold) {
+    if (y > 265) { doc.addPage(); y = 10; }
+    doc.setFontSize(8);
+    if (isBold) {
+      // Subtotal: border top + bold
+      sd(BORDER);
+      doc.setLineWidth(0.4);
+      doc.line(ML, y - 1, W - MR, y - 1);
+      doc.setFont('helvetica', 'bold');
+      sc(FIALOVA);
+      doc.text(label, ML, y + 2);
+      doc.text(value, W - MR, y + 2, { align: 'right' });
+      y += 5;
+      sf(FIALOVA);
+      doc.rect(ML, y, CW, 0.4, 'F');
+      y += 5;
+    } else {
+      doc.setFont('helvetica', 'normal');
+      sc(TEXT_SEC);
+      doc.text(label, ML, y);
+      if (ref) {
+        var lw = doc.getTextWidth(label);
+        doc.setFontSize(6);
+        sc(TEXT_MUTED);
+        doc.text(ref, ML + lw + 1.5, y);
+      }
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      sc(FIALOVA);
+      doc.text(value, W - MR, y, { align: 'right' });
+      y += 2;
+      sd([240, 238, 243]);
+      doc.setLineWidth(0.1);
+      doc.line(ML, y, W - MR, y);
+      y += 5;
+    }
   }
-  y += 12;
-  doc.setDrawColor(220, 220, 225);
-  doc.setLineWidth(0.25);
-  doc.line(col1X, y, pageW - margin, y);
-  y += 6;
-  doc.setFontSize(9);
-  doc.setTextColor(90, 85, 100);
-  doc.text('Generátor DPPO ' + DPPO_ROK + ' | Helwitax', col1X, y);
 
+  addRow('Celková daň', rd.r1080 + ' EUR', '(r.1080)', false);
+  addRow('Daň na úhradu', rd.r1100 + ' EUR', '(r.1100)', false);
+  addRow('Daňový preplatok', rd.r1101 + ' EUR', '(r.1101)', false);
+  if (rd.showPreddavky || r1110Num > 0) {
+    addRow('Daň na účely preddavkov §42', rd.r1110 + ' EUR', '(r.1110)', false);
+    addRow('Zaplatené preddavky §42', rd.r1010 + ' EUR', '(r.1010)', false);
+    addRow('Celkové preddavky', rd.r1040 + ' EUR', '(r.1040)', true);
+  }
+  y += 2;
+
+  // ================================================================
+  // 5) PREDDAVKY — fialový callout s vysvetlením
+  // ================================================================
+  if (rd.preddavkyObligationText && rd.preddavkyObligationText !== '—') {
+    // Determine type: mesačné vs štvrťročné vs žiadne
+    var isMonthly = r1110Num > 16600;
+    var isQuarterly = r1110Num > 5000 && r1110Num <= 16600;
+    var noPreddavky = r1110Num <= 5000;
+
+    var calloutH = noPreddavky ? 18 : 36;
+    sf(FIALOVA);
+    doc.roundedRect(ML, y, CW, calloutH, 2, 2, 'F');
+    // Dekoratívne pruhy
+    sf(FIALOVA2);
+    doc.rect(W - MR - 18, y, 4, calloutH, 'F');
+    doc.rect(W - MR - 10, y, 4, calloutH, 'F');
+
+    // Title
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'bold');
+    sc(ZELENA);
+    doc.text('PREDDAVKY NA DAŇ Z PRÍJMOV V ROKU ' + rd.rokPreddavky, ML + 5, y + 5.5);
+
+    if (noPreddavky) {
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      sc(WHITE);
+      doc.text('Daňovník nie je povinný platiť preddavky na daň (r.1110 ≤ 5 000 €).', ML + 5, y + 12.5);
+    } else {
+      // Vysvetlenie
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      sc(WHITE);
+      if (isQuarterly) {
+        doc.text('Daň na účely určenia výšky preddavkov (r.1110) presiahla 5 000 EUR.', ML + 5, y + 12);
+        doc.text('Na základe § 42 ods. 2 zákona o dani z príjmov vzniká daňovníkovi povinnosť platiť štvrťročné preddavky.', ML + 5, y + 17);
+        // Veľké číslo
+        doc.setFontSize(6.5);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(138, 127, 160);
+        doc.text('Štvrťročný preddavok:', ML + 5, y + 24.5);
+        doc.setFontSize(13);
+        doc.setFont('helvetica', 'bold');
+        sc(ZELENA);
+        var preddSum = rd.preddavkyBuduciRok !== '—' ? rd.preddavkyBuduciRok : formatReportNumber((r1110Num / 4).toFixed(2).replace('.', ','));
+        doc.text(preddSum + ' EUR', ML + 5, y + 31.5);
+        var pw = doc.getTextWidth(preddSum + ' EUR');
+        doc.setFontSize(6);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(138, 127, 160);
+        doc.text('(1/4 z dane na účely preddavkov)', ML + 5 + pw + 3, y + 31.5);
+      } else {
+        doc.text('Daň na účely určenia výšky preddavkov (r.1110) presiahla 16 600 EUR.', ML + 5, y + 12);
+        doc.text('Na základe § 42 ods. 3 zákona o dani z príjmov vzniká daňovníkovi povinnosť platiť mesačné preddavky.', ML + 5, y + 17);
+        doc.setFontSize(6.5);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(138, 127, 160);
+        doc.text('Mesačný preddavok:', ML + 5, y + 24.5);
+        doc.setFontSize(13);
+        doc.setFont('helvetica', 'bold');
+        sc(ZELENA);
+        var preddSumM = rd.preddavkyBuduciRokMesacne !== '—' ? rd.preddavkyBuduciRokMesacne : formatReportNumber((r1110Num / 12).toFixed(2).replace('.', ','));
+        doc.text(preddSumM + ' EUR', ML + 5, y + 31.5);
+        var pwm = doc.getTextWidth(preddSumM + ' EUR');
+        doc.setFontSize(6);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(138, 127, 160);
+        doc.text('(1/12 z dane na účely preddavkov)', ML + 5 + pwm + 3, y + 31.5);
+      }
+    }
+    y += calloutH + 5;
+  }
+
+  // ================================================================
+  // 6) §50 box
+  // ================================================================
+  if (y > 270) { doc.addPage(); y = 10; }
+  sf(FIALOVA);
+  doc.rect(ML, y, 1, 8.5, 'F');
+  sf([248, 247, 250]);
+  doc.roundedRect(ML + 1, y, CW - 1, 8.5, 0, 1, 'F');
+  doc.setFontSize(5.5);
+  doc.setFont('helvetica', 'bold');
+  sc(TEXT_MUTED);
+  doc.text('VII. ČASŤ — § 50', ML + 4, y + 3.2);
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+  sc(FIALOVA);
+  doc.text(rd.par50Text || '—', ML + 4, y + 7);
+  y += 14;
+
+  // ================================================================
+  // 7) FOOTER
+  // ================================================================
+  sd(BORDER);
+  doc.setLineWidth(0.2);
+  doc.line(ML, y, W - MR, y);
+  y += 4;
+  // Left: file info
+  doc.setFontSize(5.5);
+  doc.setFont('helvetica', 'normal');
+  sc(TEXT_MUTED);
+  doc.text((rd.fileName || '—') + '  |  ' + (rd.generatedAt || ''), ML, y);
+  // Right: brand + claim
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+  sc(FIALOVA);
+  doc.text('helwitax', W - MR, y - 1, { align: 'right' });
+  doc.setFontSize(5);
+  doc.setFont('helvetica', 'normal');
+  sc(TEXT_MUTED);
+  doc.text('rozkľúčujeme potenciál vášho podnikania', W - MR, y + 3, { align: 'right' });
+
+  // ================================================================
+  // SAVE
+  // ================================================================
   doc.save(getXmlFileName() + '_zhrnutie.pdf');
 }
 
