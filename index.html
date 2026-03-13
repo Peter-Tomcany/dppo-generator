@@ -130,6 +130,7 @@ label.btn input[type="file"]{display:none}
 /* Prehľad uložených – hlavička tabuľky jemne odlíšená */
 #prehledTableContainer .sum-table thead th{background:rgba(50,25,65,.06);color:var(--purple);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:10px 12px;border-bottom:1.5px solid var(--border)}
 #prehledTableContainer .sum-table td{padding:10px 12px}
+#prehledTableContainer .prehled-table-cols td:first-child,#prehledTableContainer .prehled-table-cols th:first-child{min-width:180px;max-width:320px}
 
 /* ── CHECK GRID ── */
 .check-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -1287,19 +1288,19 @@ function prehledFmt(r) {
 }
 
 function getPrehledFilterValues() {
-  var ico = (document.getElementById('prehledFilterIco') && document.getElementById('prehledFilterIco').value) ? document.getElementById('prehledFilterIco').value.trim().toLowerCase() : '';
+  var nazov = (document.getElementById('prehledFilterNazov') && document.getElementById('prehledFilterNazov').value) ? document.getElementById('prehledFilterNazov').value.trim().toLowerCase() : '';
   var obOd = document.getElementById('prehledFilterObod') ? document.getElementById('prehledFilterObod').value.trim() : '';
   var obDo = document.getElementById('prehledFilterObdo') ? document.getElementById('prehledFilterObdo').value.trim() : '';
   var crOd = document.getElementById('prehledFilterCreatedOd') ? document.getElementById('prehledFilterCreatedOd').value : '';
   var crDo = document.getElementById('prehledFilterCreatedDo') ? document.getElementById('prehledFilterCreatedDo').value : '';
-  return { ico: ico, obdobieOd: obOd, obdobieDo: obDo, createdOd: crOd, createdDo: crDo };
+  return { nazov: nazov, obdobieOd: obOd, obdobieDo: obDo, createdOd: crOd, createdDo: crDo };
 }
 
 function getFilteredPrehledData() {
   if (!lastPrehledData || lastPrehledData.length === 0) return [];
   var f = getPrehledFilterValues();
   return lastPrehledData.filter(function(r) {
-    if (f.ico && String(r.ico || '').toLowerCase().indexOf(f.ico) === -1) return false;
+    if (f.nazov && String(r.obchodne_meno || '').toLowerCase().indexOf(f.nazov) === -1) return false;
     if (f.obdobieOd && (r.obdobie_od || '').toString() < f.obdobieOd) return false;
     if (f.obdobieDo && (r.obdobie_do || '').toString() > f.obdobieDo) return false;
     if (f.createdOd || f.createdDo) {
@@ -1321,10 +1322,10 @@ function renderPrehledPage() {
   var paginationEl = document.getElementById('prehledPagination');
   var loadMoreWrap = document.getElementById('prehledLoadMoreWrap');
   if (!tableWrap) return;
-  var table = '<table class="sum-table" style="width:100%;font-size:12px"><thead><tr><th>Názov subjektu</th><th>IČO</th><th>DIČ</th><th>Rok priznania</th><th>Daň</th><th>VH po zdanení</th><th>Preddavky</th><th>Výška preddavkov</th><th>Uložené</th></tr></thead><tbody>';
+  var table = '<table class="sum-table prehled-table-cols" style="width:100%;font-size:12px"><thead><tr><th>Názov subjektu</th><th>Rok priznania</th><th>Daň</th><th>VH po zdanení</th><th>Preddavky</th><th>Výška preddavkov</th><th>Uložené</th></tr></thead><tbody>';
   pageRows.forEach(function(r) {
     var h = prehledFmt(r);
-    table += '<tr><td>'+esc(r.obchodne_meno||'')+'</td><td>'+esc(r.ico||'')+'</td><td>'+esc(r.dic||'')+'</td><td>'+esc(h.rok)+'</td><td>'+h.fmtSk(r.dan_na_uhradu)+'</td><td>'+h.fmtSk(r.vh_po_zdaneni)+'</td><td>'+esc(h.preddLabel)+'</td><td>'+esc(h.preddVyska)+'</td><td>'+esc(h.created)+'</td></tr>';
+    table += '<tr><td>'+esc(r.obchodne_meno||'')+'</td><td>'+esc(h.rok)+'</td><td>'+h.fmtSk(r.dan_na_uhradu)+'</td><td>'+h.fmtSk(r.vh_po_zdaneni)+'</td><td>'+esc(h.preddLabel)+'</td><td>'+esc(h.preddVyska)+'</td><td>'+esc(h.created)+'</td></tr>';
   });
   table += '</tbody></table>';
   tableWrap.innerHTML = '<div style="max-height:55vh;overflow:auto">'+table+'</div>';
@@ -1398,7 +1399,7 @@ async function showPrehledUlozenych() {
       if (xlsxBtn) xlsxBtn.style.display = 'inline-block';
       content.innerHTML =
         '<div id="prehledFilters" class="grid grid-2" style="gap:12px;margin-bottom:16px;padding:14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">' +
-        '<div class="field"><label>IČO</label><input type="text" id="prehledFilterIco" placeholder="Filter podľa IČO" oninput="onPrehledFilterChange()"></div>' +
+        '<div class="field"><label>Názov</label><input type="text" id="prehledFilterNazov" placeholder="Filter podľa názvu firmy" oninput="onPrehledFilterChange()"></div>' +
         '<div class="field"><label>Obdobie od</label><input type="text" id="prehledFilterObod" placeholder="napr. 2024" oninput="onPrehledFilterChange()"></div>' +
         '<div class="field"><label>Obdobie do</label><input type="text" id="prehledFilterObdo" placeholder="napr. 2024" oninput="onPrehledFilterChange()"></div>' +
         '<div class="field"><label>Dátum uloženia od</label><input type="date" id="prehledFilterCreatedOd" onchange="onPrehledFilterChange()"></div>' +
