@@ -216,6 +216,7 @@ label.btn input[type="file"]{display:none}
   </div>
   <div class="header-actions">
     <a href="docs/Navod_pre_uctovnikov.docx" target="_blank" rel="noopener" class="badge" style="text-decoration:none;color:var(--purple);margin-right:8px" title="Návod pre účtovníkov">Návod (DOCX)</a>
+    <button type="button" id="headerPrehledBtn" class="badge" style="display:none;margin-right:8px;background:0;border:0;cursor:pointer;color:var(--purple);font:inherit;text-decoration:none" title="Všetky podania uložené v databáze" onclick="showPrehledUlozenych()">Prehľad uložených</button>
     <button type="button" id="logoutBtn" class="badge" style="display:none;margin-right:8px;background:0;border:0;cursor:pointer;color:var(--purple);font:inherit" title="Odhlásiť sa">Odhlásiť sa</button>
     <span class="badge" id="headerYearBadge">2025</span>
   </div>
@@ -352,6 +353,8 @@ function showAppPage() {
   if (errEl) { errEl.classList.remove('visible'); errEl.textContent = ''; }
   var lb = document.getElementById('logoutBtn');
   if (lb) lb.style.display = isDbConfigured() ? '' : 'none';
+  var pb = document.getElementById('headerPrehledBtn');
+  if (pb) pb.style.display = isDbConfigured() ? '' : 'none';
 }
 async function initAuth() {
   if (!isDbConfigured()) { showAppPage(); return; }
