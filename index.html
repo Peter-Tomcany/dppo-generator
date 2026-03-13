@@ -1317,7 +1317,7 @@ async function saveToDatabase() {
   try {
     await supabaseClient.auth.setSession({ access_token: fresh.access_token, refresh_token: fresh.refresh_token });
   } catch (_) {}
-  await new Promise(function(r) { setTimeout(r, 150); });
+  var token = fresh.access_token;
   const payload = getSavePayload();
   if (!payload || !payload.ico) {
     alert('Žiadne dáta na uloženie alebo chýba IČO.');
@@ -1326,9 +1326,33 @@ async function saveToDatabase() {
   resetInactivityTimer();
   const statusEl = document.getElementById('saveDbStatus');
   if (statusEl) { statusEl.style.display = 'block'; statusEl.className = 'validation-box'; statusEl.textContent = 'Ukladám…'; }
+  var baseUrl = (typeof SUPABASE_URL !== 'undefined' && SUPABASE_URL) ? SUPABASE_URL.replace(/\/$/, '') : '';
+  if (!baseUrl && supabaseClient && supabaseClient.rest) {
+    try { baseUrl = supabaseClient.restUrl || ''; } catch (_) {}
+  }
   try {
-    const { data, error } = await supabaseClient.from('dppo_returns').insert(payload).select('id').single();
-    if (error) throw error;
+    var res = await fetch(baseUrl + '/rest/v1/dppo_returns', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': (typeof SUPABASE_ANON_KEY !== 'undefined' && SUPABASE_ANON_KEY) ? SUPABASE_ANON_KEY : '',
+        'Authorization': 'Bearer ' + token,
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify(payload)
+    });
+    var resText = await res.text();
+    if (!res.ok) {
+      var errObj = null;
+      try { errObj = resText ? JSON.parse(resText) : {}; } catch (_) {}
+      var errMsg = (errObj && errObj.message) ? errObj.message : resText || ('HTTP ' + res.status);
+      if (res.status === 401 || res.status === 403 || errMsg.indexOf('row-level security') !== -1 || errMsg.indexOf('RLS') !== -1 || errMsg.indexOf('JWT') !== -1) {
+        throw new Error('RLS_OR_AUTH');
+      }
+      throw new Error(errMsg);
+    }
+    var inserted = resText ? JSON.parse(resText) : [];
+    var row = Array.isArray(inserted) ? inserted[0] : inserted;
     if (statusEl) {
       statusEl.className = 'validation-box validation-ok';
       statusEl.style.display = 'block';
@@ -1337,13 +1361,19 @@ async function saveToDatabase() {
   } catch (err) {
     const msg = (err && err.message) ? err.message : String(err);
     var userMsg = msg;
-    if (msg.indexOf('row-level security') !== -1 || msg.indexOf('RLS') !== -1) {
-      userMsg = 'Nemáte oprávnenie na uloženie (pravdepodobne vypršala prihlásenie). Odhlásime vás – prihláste sa znova a skúste uložiť.';
-      try { if (supabaseClient && supabaseClient.auth) supabaseClient.auth.signOut(); } catch (_) {}
-      if (typeof showLoginPage === 'function') showLoginPage();
+    if (msg.indexOf('row-level security') !== -1 || msg.indexOf('RLS') !== -1 || msg.indexOf('Nemáte oprávnenie') !== -1 || msg === 'RLS_OR_AUTH') {
+      userMsg = 'Uloženie bolo zamietnuté (oprávnenia).';
     }
-    if (statusEl) { statusEl.className = 'validation-box validation-errors'; statusEl.textContent = 'Chyba: ' + userMsg; }
-    alert('Uloženie zlyhalo: ' + userMsg);
+    if (statusEl) {
+      statusEl.className = 'validation-box validation-errors';
+      statusEl.style.display = 'block';
+      if (msg === 'RLS_OR_AUTH' || (msg.indexOf('row-level security') !== -1 || msg.indexOf('RLS') !== -1)) {
+        statusEl.innerHTML = 'Chyba oprávnení pri ukladaní. Skontrolujte v Supabase Dashboard:<br>1) <strong>Authentication → Users</strong> – váš účet musí mať stav Confirmed (ak máte zapnuté Confirm email, potvrďte e-mail).<br>2) <strong>Project Settings → API</strong> – Project URL a anon key musia byť rovnaké ako SUPABASE_URL a SUPABASE_ANON_KEY na Netlify.<br>3) V <strong>SQL Editor</strong> znova spustite súbor <em>SUPABASE_DPPO_spustit_v_SQL_Editor.sql</em> (politiky RLS pre tabuľku dppo_returns).';
+      } else {
+        statusEl.textContent = 'Chyba: ' + userMsg;
+      }
+    }
+    alert('Uloženie zlyhalo: ' + userMsg + ' Podrobnosti sú v červenom boxe pod tlačidlom.');
   }
 }
 
