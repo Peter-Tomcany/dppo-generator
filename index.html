@@ -8,14 +8,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@300;400;500;700;800&display=swap" rel="stylesheet">
-<style>h
+<style>
 :root {
   --purple: #321941;
   --purple2: #3C1E46;
   --green: #AFFA96;
   --green2: #CDFFB4;
   --bg: #f7f6f9;
-  --surface: #ffffff;h
+  --surface: #ffffff;
   --surface2: #f2f0f5;
   --border: #e4dff0;
   --text: #321941;
@@ -333,7 +333,7 @@ label.btn input[type="file"]{display:none}
 // SUPABASE – pri verejnom deployi ostáva prázdne; pri internom deployi nahradí scripts/inject-supabase-env.js
 // =====================================================================
 const SUPABASE_URL = '';
-const SUPABASE_ANON_KEY = '';   // doplňte sem anon public key z Supabase → Project Settings → API
+const SUPABASE_ANON_KEY = '';   // pri deployi na Netlify doplní scripts/inject-supabase-env.js z env
 let supabaseClient = null;
 if (typeof supabase !== 'undefined' && SUPABASE_URL && SUPABASE_ANON_KEY) {
   try { supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); } catch (e) { console.warn('Supabase init:', e); }
