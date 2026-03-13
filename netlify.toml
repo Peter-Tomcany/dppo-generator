@@ -1,0 +1,9 @@
+[build]
+  command = "node scripts/inject-supabase-env.js"
+    publish = "."
+
+    [[headers]]
+      for = "/*"
+        [headers.values]
+            X-Frame-Options = "DENY"
+                X-Content-Type-Options = "nosniff"
