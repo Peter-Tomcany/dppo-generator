@@ -224,7 +224,7 @@ label.btn input[type="file"]{display:none}
   <div class="header-actions">
     <button type="button" id="headerPrehledBtn" class="header-action-btn" style="display:none;margin-right:8px" title="Všetky podania uložené v databáze" onclick="showPrehledUlozenych()">Prehľad uložených</button>
     <button type="button" id="logoutBtn" class="header-action-btn" style="display:none;margin-right:8px" title="Odhlásiť sa">Odhlásiť sa</button>
-    <a href="docs/navod.html" target="_blank" rel="noopener" class="badge" style="text-decoration:none;color:var(--purple);margin-right:8px" title="Návod pre účtovníkov">Návod (DOCX)</a>
+    <a id="navodLinkHeader" href="docs/navod.html" target="_blank" rel="noopener" class="badge" style="text-decoration:none;color:var(--purple);margin-right:8px" title="Návod pre účtovníkov">Návod</a>
     <span class="badge" id="headerYearBadge">2025</span>
     <span id="headerVersionBadge" style="font-size:10px;color:rgba(175,250,150,.85);font-weight:600;margin-left:4px" title="Verzia generátora"></span>
   </div>
@@ -278,7 +278,7 @@ label.btn input[type="file"]{display:none}
           <div id="uploadedFileName" class="uploaded-file-name" style="display:none;margin-top:14px;font-size:13px;color:var(--muted);font-weight:600"></div>
         </div>
         <div class="info-box" style="margin-top:16px">
-          <a href="docs/navod.html" target="_blank" rel="noopener" style="color:var(--purple);font-weight:700">Návod pre účtovníkov (DOCX)</a> — odporúčame prečítať pred prvým použitím.<br><br>
+          <a id="navodLinkIntro" href="docs/navod.html" target="_blank" rel="noopener" style="color:var(--purple);font-weight:700">Návod pre účtovníkov</a> — odporúčame prečítať pred prvým použitím.<br><br>
           Ak je v súbore hárok <strong>DPPO export</strong>, generátor z neho berie všetko (Tab F, prehľad ZU, oprávnená osoba, Tab B, riadky DP). Preddavky od budúceho roka môžete mať v bunkách <strong>B24</strong> (štvrťročné) a <strong>B25</strong> (mesačné); ak nie sú vyplnené, berú sa z hárka Úprava ZD. Ak hárok chýba, načíta sa zo <strong>Základné údaje</strong>, <strong>Pomôcka k DP</strong> a <strong>Pomocné výpočty</strong>; Tab F môže byť prázdna, ak na ZU nie sú v bunkách C18/C20 čísla.
           Všetky polia sú len na čítanie — dáta sa menia výhradne v Exceli.
         </div>
@@ -349,6 +349,35 @@ if (typeof supabase !== 'undefined' && SUPABASE_URL && SUPABASE_ANON_KEY) {
 }
 function isDbConfigured() { return !!supabaseClient; }
 
+var inactivityTimeoutId = null;
+var INACTIVITY_MS = 10 * 60 * 1000;
+
+function resetInactivityTimer() {
+  if (!isDbConfigured()) return;
+  if (inactivityTimeoutId) clearTimeout(inactivityTimeoutId);
+  inactivityTimeoutId = setTimeout(function() {
+    inactivityTimeoutId = null;
+    refreshSessionIfNeeded().then(function(session) {
+      if (!session) showLoginPage();
+    });
+  }, INACTIVITY_MS);
+}
+
+function startInactivityTimer() {
+  if (!isDbConfigured()) return;
+  resetInactivityTimer();
+}
+
+function setupInactivityTimer() {
+  if (!isDbConfigured()) return;
+  var el = document.getElementById('appWrap');
+  if (!el) return;
+  var onActivity = function() { resetInactivityTimer(); };
+  el.addEventListener('click', onActivity);
+  el.addEventListener('keydown', onActivity);
+  el.addEventListener('scroll', onActivity);
+}
+
 // Obnova session – pri vypršaní alebo odhlásení zobraziť login
 function setupAuthStateListener() {
   if (!supabaseClient) return;
@@ -363,9 +392,18 @@ function setupAuthStateListener() {
 }
 
 // ── Prihlásenie (iba keď je DB nakonfigurovaná – interný link) ──
+function setNavodLinks(useInterny) {
+  var href = useInterny ? 'docs/navod-interny.html' : 'docs/navod.html';
+  var h = document.getElementById('navodLinkHeader');
+  var i = document.getElementById('navodLinkIntro');
+  if (h) h.href = href;
+  if (i) i.href = href;
+}
 function showLoginPage() {
+  if (inactivityTimeoutId) { clearTimeout(inactivityTimeoutId); inactivityTimeoutId = null; }
   document.getElementById('loginPage').classList.add('visible');
   document.getElementById('appWrap').style.display = 'none';
+  setNavodLinks(false);
 }
 function showAppPage() {
   document.getElementById('loginPage').classList.remove('visible');
@@ -376,6 +414,8 @@ function showAppPage() {
   if (lb) lb.style.display = isDbConfigured() ? '' : 'none';
   var pb = document.getElementById('headerPrehledBtn');
   if (pb) pb.style.display = isDbConfigured() ? '' : 'none';
+  setNavodLinks(isDbConfigured());
+  if (isDbConfigured()) startInactivityTimer();
 }
 async function refreshSessionIfNeeded() {
   if (!supabaseClient) return null;
@@ -412,7 +452,8 @@ function setupSessionRefreshOnFocus() {
   document.addEventListener('visibilitychange', function() {
     if (document.visibilityState !== 'visible') return;
     var appWrap = document.getElementById('appWrap');
-    if (!appWrap || appWrap.style.display === 'none') return; // na login stránke nerobíme refresh
+    if (!appWrap || appWrap.style.display === 'none') return;
+    resetInactivityTimer();
     refreshSessionIfNeeded().then(function(session) {
       if (!session) showLoginPage();
     });
@@ -455,6 +496,7 @@ setupLoginForm();
 setupLogout();
 setupAuthStateListener();
 setupSessionRefreshOnFocus();
+setupInactivityTimer();
 initAuth();
 
 // =====================================================================
@@ -1266,11 +1308,18 @@ async function saveToDatabase() {
     if (typeof showLoginPage === 'function') showLoginPage();
     return;
   }
+  var fresh = await refreshSessionIfNeeded();
+  if (!fresh) {
+    alert('Prihlásenie vypršalo alebo zlyhalo obnovenie. Prihláste sa znova.');
+    if (typeof showLoginPage === 'function') showLoginPage();
+    return;
+  }
   const payload = getSavePayload();
   if (!payload || !payload.ico) {
     alert('Žiadne dáta na uloženie alebo chýba IČO.');
     return;
   }
+  resetInactivityTimer();
   const statusEl = document.getElementById('saveDbStatus');
   if (statusEl) { statusEl.style.display = 'block'; statusEl.className = 'validation-box'; statusEl.textContent = 'Ukladám…'; }
   try {
