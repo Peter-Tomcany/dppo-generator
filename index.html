@@ -1314,6 +1314,10 @@ async function saveToDatabase() {
     if (typeof showLoginPage === 'function') showLoginPage();
     return;
   }
+  try {
+    await supabaseClient.auth.setSession({ access_token: fresh.access_token, refresh_token: fresh.refresh_token });
+  } catch (_) {}
+  await new Promise(function(r) { setTimeout(r, 150); });
   const payload = getSavePayload();
   if (!payload || !payload.ico) {
     alert('Žiadne dáta na uloženie alebo chýba IČO.');
@@ -1334,7 +1338,8 @@ async function saveToDatabase() {
     const msg = (err && err.message) ? err.message : String(err);
     var userMsg = msg;
     if (msg.indexOf('row-level security') !== -1 || msg.indexOf('RLS') !== -1) {
-      userMsg = 'Nemáte oprávnenie na uloženie (pravdepodobne vypršala prihlásenie). Prihláste sa znova.';
+      userMsg = 'Nemáte oprávnenie na uloženie (pravdepodobne vypršala prihlásenie). Odhlásime vás – prihláste sa znova a skúste uložiť.';
+      try { if (supabaseClient && supabaseClient.auth) supabaseClient.auth.signOut(); } catch (_) {}
       if (typeof showLoginPage === 'function') showLoginPage();
     }
     if (statusEl) { statusEl.className = 'validation-box validation-errors'; statusEl.textContent = 'Chyba: ' + userMsg; }
@@ -1694,26 +1699,37 @@ function renderHeaderTab() {
   html += '<div class="field"><label>Typ DP</label><input type="text" value="Riadne" readonly></div>';
   html += '</div></div></div>';
 
-  // Checkboxes
+  // Checkboxes – klikateľné, stav sa premietne do XML
   html += '<div class="section"><div class="section-header"><span class="section-tag">Flags</span><span class="section-title">Zaškrtávacie políčka</span></div>';
   html += '<div class="section-body"><div class="check-grid">';
   const checks = [
-    [h.mikrodanovnik, 'Mikrodaňovník §2w'],
-    [h.uplatnujemPar17, 'Uplatňujem §17'],
-    [h.ukoncujemPar17, 'Ukončujem uplatňovanie §17'],
-    [h.obmedzenie, 'Obmedzenie'],
-    [h.prepojenie, 'Prepojenie'],
-    [h.oslobodenie13ab, 'Oslobodenie §13a/§13b'],
-    [h.polovicna46b3, 'Polovičná výška dane §46b(3)'],
-    [h.neplatenie46b7, 'Neplatenie min. dane §46b(7)'],
-    [h.zapocitanie46b5, 'Započítanie min. dane §46b(5)'],
+    ['mikrodanovnik', 'Mikrodaňovník §2w'],
+    ['uplatnujemPar17', 'Uplatňujem §17'],
+    ['ukoncujemPar17', 'Ukončujem uplatňovanie §17'],
+    ['obmedzenie', 'Obmedzenie'],
+    ['prepojenie', 'Prepojenie (transakcie s prepojenými osobami)'],
+    ['oslobodenie13ab', 'Oslobodenie §13a/§13b'],
+    ['polovicna46b3', 'Polovičná výška dane §46b(3)'],
+    ['neplatenie46b7', 'Neplatenie min. dane §46b(7)'],
+    ['zapocitanie46b5', 'Započítanie min. dane §46b(5)'],
   ];
-  for (const [val, label] of checks) {
-    html += '<div class="check-item"><div class="check-dot '+(val?'on':'off')+'"></div>'+esc(label)+'</div>';
+  for (const [key, label] of checks) {
+    var val = h[key];
+    var checked = val === 1 || val === true || val === '1';
+    html += '<div class="check-item"><label class="header-check-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0">';
+    html += '<input type="checkbox" class="header-checkbox" data-header-key="'+esc(key)+'" '+(checked?'checked':'')+' style="width:auto;margin:0"> ';
+    html += '<span>'+esc(label)+'</span></label></div>';
   }
   html += '</div></div></div>';
 
   document.getElementById('headerContent').innerHTML = html;
+  document.getElementById('headerContent').querySelectorAll('input.header-checkbox').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+      if (currentData && currentData.header && this.dataset.headerKey) {
+        currentData.header[this.dataset.headerKey] = this.checked ? 1 : 0;
+      }
+    });
+  });
 }
 
 function renderOsobaTab() {
