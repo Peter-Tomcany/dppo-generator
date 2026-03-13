@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Návod pre účtovníkov – DPPO generátor | Helwitax</title>
+<link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--purple:#321941;--green:#AFFA96;--bg:#f7f6f9;--surface:#fff;--border:#e4dff0;--text:#321941;--muted:#7a6b90;--sans:'Cabinet Grotesk',sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;padding:24px 20px 60px}
+.wrap{max-width:720px;margin:0 auto}
+h1{font-size:22px;font-weight:800;color:var(--purple);margin-bottom:12px}
+h2{font-size:16px;font-weight:700;color:var(--purple);margin-top:28px;margin-bottom:10px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+h3{font-size:14px;font-weight:700;color:var(--purple);margin-top:18px;margin-bottom:8px}
+p{margin-bottom:12px}
+ul{margin:8px 0 12px 20px;padding:0}
+li{margin:4px 0}
+hr{margin:24px 0;border:0;border-top:1px solid var(--border)}
+strong{font-weight:700}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13px}
+th,td{border:1px solid var(--border);padding:10px 12px;text-align:left}
+th{background:var(--purple);color:var(--green);font-weight:700}
+.back{display:inline-block;margin-bottom:20px;padding:8px 16px;background:var(--purple);color:var(--green);text-decoration:none;border-radius:8px;font-weight:700;font-size:13px}
+.back:hover{opacity:.9}
+.foot{margin-top:32px;font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../index.html" class="back">← Späť na generátor</a>
+
+  <h1>Návod na použitie generátora XML pre DPPO (pre účtovníkov)</h1>
+  <p>Generátor pripraví súbor XML pre daňové priznanie právnických osôb (DPPO) podľa schémy Finančnej správy SR. Všetky údaje sa berú z vášho Excelu (Výpočet ZD); v aplikácii sa <strong>nič neupravuje</strong> – len sa zobrazia na kontrolu a vyexportujú do XML.</p>
+
+  <hr>
+
+  <h2>Čo potrebujete</h2>
+  <ol>
+    <li><strong>Excel súbor</strong> – tabuľka na výpočet základu dane (<strong>Výpočet ZD 2025_v. 1.1.xlsm</strong>), v ktorom máte:
+      <ul>
+        <li>vyplnený hárok <strong>Základné údaje</strong> (IČO, DIČ, obchodné meno, sídlo, zdaňovacie obdobie, checkboxy, oprávnená osoba, telefón, email, počet príloh, dátum vyhlásenia),</li>
+        <li>vyplnený hárok <strong>Pomôcka k DP</strong> (riadky daňového priznania so sumami),</li>
+        <li>hárok <strong>DPPO export</strong> (odporúčaný – generátor z neho berie všetky údaje na export).</li>
+      </ul>
+    </li>
+    <li><strong>Generátor</strong> – súbor <em>index.html</em> otvorený v prehliadači (Chrome, Edge, Firefox). Môže byť uložený lokálne alebo na sieťovom disku.</li>
+  </ol>
+
+  <hr>
+
+  <h2>Postup krok za krokom</h2>
+
+  <h3>1. Príprava Excelu</h3>
+  <ul>
+    <li>Doplňte v tabuľke všetky údaje podľa bežného postupu (Úprava ZD, Pomocné výpočty, Pomôcka k DP atď.).</li>
+    <li>Na hárku <strong>Základné údaje</strong> vyplňte aj blok <strong>Oprávnená osoba</strong> (priezvisko, meno, titul, titul za, postavenie). Ak používate pôvodnú tabuľku bez vkladania riadkov, údaje oprávnenej osoby sú v stĺpci <strong>H</strong>, riadky 30–34 (H30–H34).</li>
+    <li>Ak má súbor hárok <strong>DPPO export</strong>, generátor z neho načíta Tab F, prehľad ZU, oprávnenú osobu, Tab B a riadky DP. Preddavky od budúceho roka môžete mať v bunkách <strong>B24</strong> (štvrťročné) a <strong>B25</strong> (mesačné); ak nie sú vyplnené, berú sa z hárka Úprava ZD. Ak hárok DPPO export chýba, generátor číta zo Základných údajov a z Pomôcka k DP (Tab F môže ostať prázdna, ak na ZU nie sú na správnych miestach čísla pre výnosy/náklady).</li>
+    <li><strong>Uložte</strong> Excel pred nahratím do generátora.</li>
+  </ul>
+
+  <h3>2. Spustenie generátora</h3>
+  <ul>
+    <li>Otvorte súbor <strong>index.html</strong> dvojklikom alebo z prehliadača (Súbor → Otvoriť). Zobrazí sa stránka „Daňové priznanie právnických osôb – Generátor XML“.</li>
+  </ul>
+
+  <h3>3. Krok 1 – Nahratie Excelu</h3>
+  <ul>
+    <li>Kliknite na <strong>Vybrať súbor</strong> a zvoľte váš súbor (.xlsm alebo .xlsx).</li>
+    <li>Po nahratí sa automaticky prejdete na <strong>Krok 2 – Dáta</strong>. Ak sa zobrazí chyba, skontrolujte, či súbor obsahuje hárok „Pomôcka k DP“ alebo „DPPO export“.</li>
+  </ul>
+
+  <h3>4. Krok 2 – Dáta</h3>
+  <ul>
+    <li>Skontrolujte zobrazené <strong>riadky daňového priznania</strong> (sumy podľa riadkov). Zobrazujú sa len neprázdne riadky.</li>
+    <li>Ak niečo chýba alebo je zle, <strong>úpravu urobte v Exceli</strong>, uložte a znova nahrajte súbor do generátora.</li>
+  </ul>
+
+  <h3>5. Krok 3 – Hlavička DP</h3>
+  <ul>
+    <li>Skontrolujte <strong>IČO, DIČ, obchodné meno, sídlo, zdaňovacie obdobie, právna forma, NACE, checkboxy</strong> (§17, obmedzenie, prepojenie, stála prevádzkareň atď.).</li>
+    <li>Ak je niečo nesprávne, upravte to v <strong>Exceli</strong> (Základné údaje) a znova nahrajte súbor.</li>
+  </ul>
+
+  <h3>6. Krok 4 – Oprávnená osoba</h3>
+  <ul>
+    <li>Skontrolujte <strong>priezvisko, meno, titul, titul za, postavenie</strong> (Konateľ, Predseda predstavenstva, splnomocnená osoba, externý účtovník).</li>
+    <li>Zmeny sa robia v <strong>Exceli</strong> (bunky pre oprávnenú osobu na ZU, prípadne na hárku DPPO export).</li>
+  </ul>
+
+  <h3>7. Krok 5 – Vyhlásenie §50, počet príloh, dátum</h3>
+  <ul>
+    <li>Skontrolujte <strong>telefón, email, počet príloh, dátum vyhlásenia</strong>.</li>
+    <li>Úpravy opäť len v <strong>Exceli</strong>.</li>
+  </ul>
+
+  <h3>8. Generovanie a stiahnutie XML</h3>
+  <ul>
+    <li>Kliknite na tlačidlo <strong>Generovať XML</strong>.</li>
+    <li>Skontrolujte v kroku „XML“ zobrazený obsah a prípadné <strong>upozornenia</strong> (žlté) alebo <strong>chyby</strong> (červené). Chyby treba odstrániť úpravou dát v Exceli a opakovaním exportu.</li>
+    <li>Kliknite na <strong>Stiahnuť XML súbor</strong>. Súbor sa uloží (typicky ako <em>DPPO_2025.xml</em> alebo s názvom podľa nastavenia).</li>
+  </ul>
+
+  <h3>9. Čo ďalej s XML</h3>
+  <ul>
+    <li>Nahrajte stiahnutý XML súbor do <strong>portálu Finančnej správy SR</strong> (elektronické podanie DPPO) alebo ho použite podľa vnútorných pravidiel spoločnosti.</li>
+    <li>Pred odoslaním odporúčame ešte raz skontrolovať údaje priamo v XML alebo v náhľade na portáli.</li>
+  </ul>
+
+  <hr>
+
+  <h2>Časté problémy</h2>
+
+  <h3>Tab F (výnosy / náklady) je v XML prázdna</h3>
+  <ul>
+    <li>Generátor berie súčet výnosov (r.01) a súčet nákladov (r.02) z hárka <strong>DPPO export</strong> (bunky B1, B2) alebo zo <strong>Základné údaje</strong> (bunky C18, C20).</li>
+    <li>Ak máte na ZU v C18/C20 iné údaje (napr. checkbox, text, ulica), Tab F sa nevyplní. <strong>Riešenie:</strong> Pridajte do Excelu hárok <strong>DPPO export</strong> so vzorcami B1='Základné údaje'!C18, B2='Základné údaje'!C20 (alebo tam, kde v vašej tabuľke sú výnosy a náklady), alebo presuňte výnosy/náklady do C18/C20 na ZU.</li>
+    <li>Uložte Excel a v Exceli otvorte a uložte súbor, aby sa vzorce v DPPO export prepočítali, potom znova nahrajte do generátora.</li>
+  </ul>
+
+  <h3>Chýba hárok „Pomôcka k DP“ alebo „Základné údaje“</h3>
+  <ul>
+    <li>Generátor vyžaduje aspoň jeden z hárkov: <strong>Pomôcka k DP</strong> (riadky daňového priznania) alebo <strong>DPPO export</strong> (ak ho máte). Ďalej potrebuje hárok <strong>Základné údaje</strong> (IČO, DIČ, firma, obdobie).</li>
+    <li>Skontrolujte presné názvy hárkov v Exceli. Ak používate „Pomôcka pre DP“ namiesto „Pomôcka k DP“, generátor ho môže nájsť automaticky; ak nie, premenujte hárok na <strong>Pomôcka k DP</strong>.</li>
+    <li>Ak chýba <strong>Základné údaje</strong>, doplňte ho podľa šablóny alebo pôvodnej tabuľky Výpočet ZD.</li>
+  </ul>
+
+  <h3>VII. časť §50 (neuplatňujem / prijímateľ)</h3>
+  <ul>
+    <li>Ak <strong>neuplatňujete</strong> postup podľa § 50 zákona, zaškrtnite v Kroku 5 políčko <strong>„Neuplatňujem postup podľa § 50 zákona“</strong>. V XML sa zapíše príslušná hodnota a VII. časť (riadky 1–4 a prijímateľ) ostane prázdna.</li>
+    <li>Ak políčko <strong>odškrtnete</strong> (chcete poukázať podiel dane), vyplňte <strong>IČO prijímateľa</strong> a odporúčame aj <strong>obchodné meno</strong>. Generátor doplní daň (r. 1) a 1 % (r. 4) z údajov z tela DP.</li>
+    <li>Ak generátor hlási chybu pri IČO prijímateľa, skontrolujte, že IČO má 8 číslic.</li>
+  </ul>
+
+  <h3>Iné chyby pred generovaním</h3>
+  <ul>
+    <li><strong>IČO musí mať 8 číslic</strong>, <strong>DIČ 10 číslic</strong> (s voliteľnou predponou SK). Medzery sa ignorujú.</li>
+    <li><strong>Zdaňovacie obdobie</strong> musí byť vo formáte dd.mm.yyyy (načítava sa z Excelu).</li>
+    <li>Všetky úpravy sa robia v <strong>Exceli</strong>; po zmene súbor uložte a v generátore znova nahrajte.</li>
+  </ul>
+
+  <hr>
+
+  <h2>Dôležité upozornenia</h2>
+  <ul>
+    <li><strong>Jediný zdroj údajov je Excel.</strong> Všetky polia v generátore sú len na čítanie. Ak niečo zmeníte v Exceli, znova nahrajte súbor a prejdite kroky znova.</li>
+    <li><strong>Hárok DPPO export</strong> – ak ho máte v súbore, generátor z neho berie Tab F, oprávnenú osobu, Tab B a riadky DP. Preddavky od budúceho roka môžete mať v bunkách B24 (štvrťročné) a B25 (mesačné); ak nie sú vyplnené, berú sa z Úpravy ZD. Je to odporúčaný spôsob, aby sa údaje správne namapovali.</li>
+    <li><strong>Oprávnená osoba</strong> – pri použití pôvodnej tabuľky (Výpočet ZD 2025 v. 1.1) sa vyplňuje do buniek <strong>H30–H34</strong> na hárku Základné údaje (bez vkladania riadkov, aby ostali vzorce na ostatných hárkoch).</li>
+    <li>Ak generátor hlási chýbajúce alebo neplatné údaje, opravte ich v Exceli a znova vygenerujte XML.</li>
+  </ul>
+
+  <hr>
+
+  <h2>Rýchly prehľad krokov</h2>
+  <table>
+    <tr><th>Krok</th><th>Čo robíte</th></tr>
+    <tr><td>1</td><td>Vyberiete a nahrajete Excel (Výpočet ZD s DPPO exportom / Pomôcka k DP)</td></tr>
+    <tr><td>2</td><td>Skontrolujete riadky DP (dáta)</td></tr>
+    <tr><td>3</td><td>Skontrolujete hlavičku (IČO, DIČ, sídlo, obdobie, checkboxy)</td></tr>
+    <tr><td>4</td><td>Skontrolujete oprávnenú osobu</td></tr>
+    <tr><td>5</td><td>Skontrolujete telefón, email, prílohy, dátum vyhlásenia</td></tr>
+    <tr><td>6</td><td>Kliknete „Generovať XML“ a potom „Stiahnuť XML súbor“</td></tr>
+  </table>
+
+  <p class="foot">Generátor DPPO 2025 – Helwitax. Dáta sa menia výhradne v Exceli.</p>
+</div>
+</body>
+</html>
