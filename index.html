@@ -36,7 +36,10 @@ header{
 .logo-divider{width:1px;height:24px;background:rgba(175,250,150,.25)}
 .logo-label{font-size:11px;font-weight:600;color:rgba(175,250,150,.7);letter-spacing:.06em;text-transform:uppercase}
 .badge{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:var(--green);color:var(--purple);padding:4px 12px;border-radius:20px}
-.header-actions{display:flex;align-items:center;gap:10px}
+.header-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+/* Tlačidlá v hlavičke (Prehľad, Odhlásiť) – výrazný outline, dobre viditeľné */
+.header-action-btn{font-size:11px;font-weight:700;letter-spacing:.05em;padding:6px 14px;border-radius:8px;border:1.5px solid var(--green);color:var(--green);background:transparent;cursor:pointer;font-family:var(--sans)}
+.header-action-btn:hover{background:rgba(175,250,150,.2);color:var(--green)}
 
 /* ── CONTAINER ── */
 .container{max-width:940px;margin:0 auto;padding:40px 24px 100px}
@@ -215,10 +218,11 @@ label.btn input[type="file"]{display:none}
     <div class="logo-label">DPPO 2025</div>
   </div>
   <div class="header-actions">
+    <button type="button" id="headerPrehledBtn" class="header-action-btn" style="display:none;margin-right:8px" title="Všetky podania uložené v databáze" onclick="showPrehledUlozenych()">Prehľad uložených</button>
+    <button type="button" id="logoutBtn" class="header-action-btn" style="display:none;margin-right:8px" title="Odhlásiť sa">Odhlásiť sa</button>
     <a href="docs/Navod_pre_uctovnikov.docx" target="_blank" rel="noopener" class="badge" style="text-decoration:none;color:var(--purple);margin-right:8px" title="Návod pre účtovníkov">Návod (DOCX)</a>
-    <button type="button" id="headerPrehledBtn" class="badge" style="display:none;margin-right:8px;background:0;border:0;cursor:pointer;color:var(--purple);font:inherit;text-decoration:none" title="Všetky podania uložené v databáze" onclick="showPrehledUlozenych()">Prehľad uložených</button>
-    <button type="button" id="logoutBtn" class="badge" style="display:none;margin-right:8px;background:0;border:0;cursor:pointer;color:var(--purple);font:inherit" title="Odhlásiť sa">Odhlásiť sa</button>
     <span class="badge" id="headerYearBadge">2025</span>
+    <span id="headerVersionBadge" style="font-size:10px;color:rgba(175,250,150,.85);font-weight:600;margin-left:4px" title="Verzia generátora"></span>
   </div>
 </header>
 
@@ -341,6 +345,19 @@ if (typeof supabase !== 'undefined' && SUPABASE_URL && SUPABASE_ANON_KEY) {
 }
 function isDbConfigured() { return !!supabaseClient; }
 
+// Obnova session – pri vypršaní alebo odhlásení zobraziť login
+function setupAuthStateListener() {
+  if (!supabaseClient) return;
+  supabaseClient.auth.onAuthStateChange(function(event, session) {
+    if (!isDbConfigured()) return;
+    if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+      if (!session) { showLoginPage(); }
+    } else if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+      if (session) { showAppPage(); }
+    }
+  });
+}
+
 // ── Prihlásenie (iba keď je DB nakonfigurovaná – interný link) ──
 function showLoginPage() {
   document.getElementById('loginPage').classList.add('visible');
@@ -376,15 +393,19 @@ function setupLoginForm() {
     var email = document.getElementById('loginEmail').value.trim();
     var pass = document.getElementById('loginPassword').value;
     var errEl = document.getElementById('loginError');
+    var submitBtn = form.querySelector('button[type="submit"]');
     if (!supabaseClient || !email || !pass) return;
     errEl.classList.remove('visible');
     errEl.textContent = '';
+    if (submitBtn) { submitBtn.textContent = 'Prihlasujem…'; submitBtn.disabled = true; }
     try {
       await supabaseClient.auth.signInWithPassword({ email: email, password: pass });
       showAppPage();
     } catch (err) {
       errEl.textContent = err?.message || 'Prihlásenie zlyhalo. Skontrolujte e-mail a heslo.';
       errEl.classList.add('visible');
+    } finally {
+      if (submitBtn) { submitBtn.textContent = 'Prihlásiť sa'; submitBtn.disabled = false; }
     }
   });
 }
@@ -399,6 +420,7 @@ function setupLogout() {
 }
 setupLoginForm();
 setupLogout();
+setupAuthStateListener();
 initAuth();
 
 // =====================================================================
@@ -1214,7 +1236,11 @@ async function saveToDatabase() {
   try {
     const { data, error } = await supabaseClient.from('dppo_returns').insert(payload).select('id').single();
     if (error) throw error;
-    if (statusEl) { statusEl.className = 'validation-box validation-ok'; statusEl.textContent = 'Záznam bol uložený do databázy.'; }
+    if (statusEl) {
+      statusEl.className = 'validation-box validation-ok';
+      statusEl.style.display = 'block';
+      statusEl.innerHTML = 'Záznam bol uložený. <a href="#" onclick="event.preventDefault();showPrehledUlozenych();return false" style="font-weight:700;color:var(--purple);text-decoration:underline;margin-left:6px">Zobraziť prehľad</a>';
+    }
   } catch (err) {
     const msg = (err && err.message) ? err.message : String(err);
     if (statusEl) { statusEl.className = 'validation-box validation-errors'; statusEl.textContent = 'Chyba: ' + msg; }
@@ -1222,28 +1248,194 @@ async function saveToDatabase() {
   }
 }
 
+var lastPrehledData = [];
+var prehledCurrentPage = 1;
+var PREHLED_PAGE_SIZE = 50;
+var PREHLED_LOAD_MORE = 50;
+var PREHLED_MAX = 500;
+
+function csvEscape(val) {
+  if (val == null || val === '') return '';
+  var s = String(val);
+  if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+function prehledRokPriznania(obdobieDo) {
+  if (!obdobieDo) return '—';
+  var s = String(obdobieDo).trim();
+  var m = s.match(/\d{4}/);
+  return m ? m[0] : s;
+}
+function prehledPreddavkyLabel(r) {
+  if (!r.plati_preddavky || r.preddavky_typ === 'ziadne') return 'NIE';
+  if (r.preddavky_typ === 'mesacne') return 'MES';
+  if (r.preddavky_typ === 'stvrtrocne') return 'KVA';
+  return 'NIE';
+}
+function prehledFmt(r) {
+  var fmt = function(v) { return (v != null && v !== '') ? (typeof v === 'number' ? v.toFixed(2) : String(v)) : '—'; };
+  return {
+    rok: prehledRokPriznania(r.obdobie_do),
+    preddLabel: prehledPreddavkyLabel(r),
+    preddVyska: r.plati_preddavky && (r.preddavky_typ === 'mesacne' || r.preddavky_typ === 'stvrtrocne') ? fmt(r.preddavky_vyska) : '—',
+    created: r.created_at ? new Date(r.created_at).toLocaleString('sk-SK') : '—',
+    fmt: fmt
+  };
+}
+
+function getPrehledFilterValues() {
+  var ico = (document.getElementById('prehledFilterIco') && document.getElementById('prehledFilterIco').value) ? document.getElementById('prehledFilterIco').value.trim().toLowerCase() : '';
+  var obOd = document.getElementById('prehledFilterObod') ? document.getElementById('prehledFilterObod').value.trim() : '';
+  var obDo = document.getElementById('prehledFilterObdo') ? document.getElementById('prehledFilterObdo').value.trim() : '';
+  var crOd = document.getElementById('prehledFilterCreatedOd') ? document.getElementById('prehledFilterCreatedOd').value : '';
+  var crDo = document.getElementById('prehledFilterCreatedDo') ? document.getElementById('prehledFilterCreatedDo').value : '';
+  return { ico: ico, obdobieOd: obOd, obdobieDo: obDo, createdOd: crOd, createdDo: crDo };
+}
+
+function getFilteredPrehledData() {
+  if (!lastPrehledData || lastPrehledData.length === 0) return [];
+  var f = getPrehledFilterValues();
+  return lastPrehledData.filter(function(r) {
+    if (f.ico && String(r.ico || '').toLowerCase().indexOf(f.ico) === -1) return false;
+    if (f.obdobieOd && (r.obdobie_od || '').toString() < f.obdobieOd) return false;
+    if (f.obdobieDo && (r.obdobie_do || '').toString() > f.obdobieDo) return false;
+    if (f.createdOd || f.createdDo) {
+      var t = r.created_at ? new Date(r.created_at).getTime() : 0;
+      if (f.createdOd && t < new Date(f.createdOd).getTime()) return false;
+      if (f.createdDo && t > new Date(f.createdDo + 'T23:59:59').getTime()) return false;
+    }
+    return true;
+  });
+}
+
+function renderPrehledPage() {
+  var filtered = getFilteredPrehledData();
+  var totalPages = Math.max(1, Math.ceil(filtered.length / PREHLED_PAGE_SIZE));
+  if (prehledCurrentPage > totalPages) prehledCurrentPage = totalPages;
+  var start = (prehledCurrentPage - 1) * PREHLED_PAGE_SIZE;
+  var pageRows = filtered.slice(start, start + PREHLED_PAGE_SIZE);
+  var tableWrap = document.getElementById('prehledTableContainer');
+  var paginationEl = document.getElementById('prehledPagination');
+  var loadMoreWrap = document.getElementById('prehledLoadMoreWrap');
+  if (!tableWrap) return;
+  var table = '<table class="sum-table" style="width:100%;font-size:12px"><thead><tr><th>Názov subjektu</th><th>IČO</th><th>DIČ</th><th>Rok priznania</th><th>Daň</th><th>VH po zdanení</th><th>Preddavky</th><th>Výška preddavkov</th><th>Uložené</th></tr></thead><tbody>';
+  pageRows.forEach(function(r) {
+    var h = prehledFmt(r);
+    table += '<tr><td>'+esc(r.obchodne_meno||'')+'</td><td>'+esc(r.ico||'')+'</td><td>'+esc(r.dic||'')+'</td><td>'+esc(h.rok)+'</td><td>'+h.fmt(r.dan_na_uhradu)+'</td><td>'+h.fmt(r.vh_po_zdaneni)+'</td><td>'+esc(h.preddLabel)+'</td><td>'+esc(h.preddVyska)+'</td><td>'+esc(h.created)+'</td></tr>';
+  });
+  table += '</tbody></table>';
+  tableWrap.innerHTML = '<div style="max-height:55vh;overflow:auto">'+table+'</div>';
+  if (paginationEl) {
+    var prevDisabled = prehledCurrentPage <= 1 ? ' disabled' : '';
+    var nextDisabled = prehledCurrentPage >= totalPages ? ' disabled' : '';
+    paginationEl.innerHTML = '<span style="margin-right:12px;font-size:12px;color:var(--muted)">Strana '+prehledCurrentPage+' z '+totalPages+' (celkom '+filtered.length+' záznamov)</span>' +
+      '<button type="button" class="btn btn-secondary"'+prevDisabled+' onclick="prehledCurrentPage--;renderPrehledPage()">Predchádzajúca</button>' +
+      '<button type="button" class="btn btn-secondary" style="margin-left:8px"'+nextDisabled+' onclick="prehledCurrentPage++;renderPrehledPage()">Ďalšia</button>';
+  }
+  if (loadMoreWrap) loadMoreWrap.style.display = (lastPrehledData.length < PREHLED_MAX && filtered.length === lastPrehledData.length) ? 'block' : 'none';
+}
+
+function loadMorePrehled() {
+  if (!supabaseClient || lastPrehledData.length >= PREHLED_MAX) return;
+  var btn = document.getElementById('prehledLoadMoreBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Načítavam…'; }
+  var from = lastPrehledData.length;
+  supabaseClient.from('dppo_returns').select('*').order('created_at', { ascending: false }).range(from, from + PREHLED_LOAD_MORE - 1).then(function(res) {
+    if (res.error) { if (btn) { btn.disabled = false; btn.textContent = 'Načítať ďalších 50'; } return; }
+    if (res.data && res.data.length) lastPrehledData = lastPrehledData.concat(res.data);
+    prehledCurrentPage = 1;
+    renderPrehledPage();
+    if (btn) { btn.disabled = false; btn.textContent = 'Načítať ďalších 50'; }
+  });
+}
+
+function onPrehledFilterChange() {
+  prehledCurrentPage = 1;
+  renderPrehledPage();
+}
+
+function downloadPrehledCsv() {
+  var data = getFilteredPrehledData();
+  if (!data || data.length === 0) { alert('Žiadne dáta na export.'); return; }
+  var header = ['Názov subjektu','IČO','DIČ','Rok priznania','Daň','VH po zdanení','Preddavky (MES/KVA/NIE)','Výška preddavkov','Uložené'];
+  var rows = [header.join(';')];
+  data.forEach(function(r) {
+    var fmt = function(v) { return (v != null && v !== '') ? (typeof v === 'number' ? v.toFixed(2) : String(v)) : ''; };
+    var rok = prehledRokPriznania(r.obdobie_do);
+    var preddLabel = prehledPreddavkyLabel(r);
+    var preddVyska = r.plati_preddavky && (r.preddavky_typ === 'mesacne' || r.preddavky_typ === 'stvrtrocne') ? fmt(r.preddavky_vyska) : '';
+    var created = r.created_at ? new Date(r.created_at).toLocaleString('sk-SK') : '';
+    rows.push([csvEscape(r.obchodne_meno),csvEscape(r.ico),csvEscape(r.dic),csvEscape(rok),fmt(r.dan_na_uhradu),fmt(r.vh_po_zdaneni),preddLabel,preddVyska,csvEscape(created)].join(';'));
+  });
+  var blob = new Blob(['\uFEFF' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'dppo_prehled_ulozenych_' + new Date().toISOString().slice(0,10) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function downloadPrehledXlsx() {
+  if (typeof XLSX === 'undefined') { alert('Export XLSX nie je k dispozícii.'); return; }
+  var data = getFilteredPrehledData();
+  if (!data || data.length === 0) { alert('Žiadne dáta na export.'); return; }
+  var header = ['Názov subjektu','IČO','DIČ','Rok priznania','Daň','VH po zdanení','Preddavky (MES/KVA/NIE)','Výška preddavkov','Uložené'];
+  var aoa = [header];
+  data.forEach(function(r) {
+    var fmt = function(v) { return (v != null && v !== '') ? (typeof v === 'number' ? v.toFixed(2) : String(v)) : ''; };
+    var rok = prehledRokPriznania(r.obdobie_do);
+    var preddLabel = prehledPreddavkyLabel(r);
+    var preddVyska = r.plati_preddavky && (r.preddavky_typ === 'mesacne' || r.preddavky_typ === 'stvrtrocne') ? fmt(r.preddavky_vyska) : '';
+    var created = r.created_at ? new Date(r.created_at).toLocaleString('sk-SK') : '';
+    aoa.push([r.obchodne_meno||'',r.ico||'',r.dic||'',rok,r.dan_na_uhradu,r.vh_po_zdaneni,preddLabel,preddVyska,created]);
+  });
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'DPPO prehľad');
+  XLSX.writeFile(wb, 'dppo_prehled_ulozenych_' + new Date().toISOString().slice(0,10) + '.xlsx');
+}
+
 async function showPrehledUlozenych() {
   if (!isDbConfigured()) { alert('Databáza nie je nakonfigurovaná.'); return; }
-  const overlay = document.getElementById('prehledOverlay');
-  const content = document.getElementById('prehledContent');
+  var overlay = document.getElementById('prehledOverlay');
+  var content = document.getElementById('prehledContent');
+  var csvBtn = document.getElementById('prehledCsvBtn');
+  var xlsxBtn = document.getElementById('prehledXlsxBtn');
   if (!overlay || !content) return;
+  if (csvBtn) csvBtn.style.display = 'none';
+  if (xlsxBtn) xlsxBtn.style.display = 'none';
+  lastPrehledData = [];
+  prehledCurrentPage = 1;
   content.innerHTML = '<p style="padding:20px;color:var(--muted)">Načítavam…</p>';
   overlay.style.display = 'flex';
   try {
-    const { data, error } = await supabaseClient.from('dppo_returns').select('*').order('created_at', { ascending: false }).limit(200);
-    if (error) throw error;
-    if (!data || data.length === 0) {
+    var res = await supabaseClient.from('dppo_returns').select('*').order('created_at', { ascending: false }).range(0, PREHLED_LOAD_MORE - 1);
+    if (res.error) throw res.error;
+    var data = res.data || [];
+    if (data.length === 0) {
       content.innerHTML = '<p style="padding:20px;color:var(--muted)">V databáze nie sú žiadne záznamy.</p>';
     } else {
-      let table = '<table class="sum-table" style="width:100%;font-size:12px"><thead><tr><th>IČO</th><th>Obchodné meno</th><th>Obdobie</th><th>VH pred zdanením</th><th>Daň</th><th>VH po zdanení</th><th>Preddavky</th><th>Odklad podania</th><th>Uložené</th></tr></thead><tbody>';
-      data.forEach(function(r) {
-        const fmt = (v) => (v != null && v !== '') ? (typeof v === 'number' ? v.toFixed(2) : String(v)) : '—';
-        const predd = r.plati_preddavky ? (r.preddavky_typ === 'mesacne' ? 'mesačné ' + fmt(r.preddavky_vyska) : 'štvrťr. ' + fmt(r.preddavky_vyska)) : 'nie';
-        const created = r.created_at ? new Date(r.created_at).toLocaleString('sk-SK') : '—';
-        table += '<tr><td>'+esc(r.ico||'')+'</td><td>'+esc(r.obchodne_meno||'')+'</td><td>'+(r.obdobie_od||'')+' – '+(r.obdobie_do||'')+'</td><td>'+fmt(r.vh_pred_zdanenim)+'</td><td>'+fmt(r.dan_na_uhradu)+'</td><td>'+fmt(r.vh_po_zdaneni)+'</td><td>'+esc(predd)+'</td><td>'+(r.odklad_podania?'Áno':'Nie')+'</td><td>'+esc(created)+'</td></tr>';
-      });
-      table += '</tbody></table>';
-      content.innerHTML = '<div style="max-height:70vh;overflow:auto">'+table+'</div>';
+      lastPrehledData = data;
+      if (csvBtn) csvBtn.style.display = 'inline-block';
+      if (xlsxBtn) xlsxBtn.style.display = 'inline-block';
+      content.innerHTML =
+        '<div id="prehledFilters" class="grid grid-2" style="gap:12px;margin-bottom:16px;padding:14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">' +
+        '<div class="field"><label>IČO</label><input type="text" id="prehledFilterIco" placeholder="Filter podľa IČO" oninput="onPrehledFilterChange()"></div>' +
+        '<div class="field"><label>Obdobie od</label><input type="text" id="prehledFilterObod" placeholder="napr. 2024" oninput="onPrehledFilterChange()"></div>' +
+        '<div class="field"><label>Obdobie do</label><input type="text" id="prehledFilterObdo" placeholder="napr. 2024" oninput="onPrehledFilterChange()"></div>' +
+        '<div class="field"><label>Dátum uloženia od</label><input type="date" id="prehledFilterCreatedOd" onchange="onPrehledFilterChange()"></div>' +
+        '<div class="field"><label>Dátum uloženia do</label><input type="date" id="prehledFilterCreatedDo" onchange="onPrehledFilterChange()"></div>' +
+        '</div>' +
+        '<div id="prehledTableContainer"></div>' +
+        '<div id="prehledPagination" style="margin-top:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"></div>' +
+        '<div id="prehledLoadMoreWrap" style="margin-top:12px">' +
+        '<button type="button" id="prehledLoadMoreBtn" class="btn btn-secondary" onclick="loadMorePrehled()">Načítať ďalších 50</button>' +
+        '</div>';
+      renderPrehledPage();
     }
   } catch (err) {
     content.innerHTML = '<p class="validation-box validation-errors" style="margin:20px">Chyba: '+esc(err && err.message ? err.message : String(err))+'</p>';
@@ -2177,16 +2369,22 @@ document.querySelectorAll('.step').forEach(s => {
   });
 });
 
-// Lokalizácia: titulok a badge podľa DPPO_ROK
+// Lokalizácia: titulok, rok a verzia generátora
 document.title = 'DPPO ' + DPPO_ROK + ' – Generátor XML | Helwitax';
 var badgeEl = document.getElementById('headerYearBadge');
 if (badgeEl) badgeEl.textContent = DPPO_ROK;
+var versionEl = document.getElementById('headerVersionBadge');
+if (versionEl) versionEl.textContent = typeof GENERATOR_VERSION !== 'undefined' ? GENERATOR_VERSION : '';
 </script>
 <div id="prehledOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closePrehledOverlay()">
   <div style="background:var(--surface);border-radius:12px;max-width:1200px;width:100%;max-height:90vh;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.2)">
-    <div style="padding:16px 20px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+    <div style="padding:16px 20px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
       <strong>Prehľad uložených záznamov (DPPO)</strong>
-      <button type="button" class="btn btn-secondary" onclick="closePrehledOverlay()">Zavrieť</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button type="button" id="prehledCsvBtn" class="btn btn-secondary" style="display:none" onclick="downloadPrehledCsv()">Stiahnuť CSV</button>
+        <button type="button" id="prehledXlsxBtn" class="btn btn-secondary" style="display:none" onclick="downloadPrehledXlsx()">Stiahnuť XLSX</button>
+        <button type="button" class="btn btn-secondary" onclick="closePrehledOverlay()">Zavrieť</button>
+      </div>
     </div>
     <div id="prehledContent" style="padding:20px"></div>
   </div>
