@@ -6,6 +6,7 @@
 <title>DPPO – Generátor XML | Helwitax</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@300;400;500;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -155,6 +156,14 @@ label.btn input[type="file"]{display:none}
 .page.active{display:block}
 
 /* ── RESPONSIVE ── */
+/* ── LOGIN (iba pri internom linku s DB) ── */
+#loginPage{display:none;min-height:100vh;background:var(--bg);align-items:center;justify-content:center;padding:20px}
+#loginPage.visible{display:flex}
+#loginPage .login-box{background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:32px;max-width:380px;width:100%;box-shadow:0 4px 20px rgba(50,25,65,.08)}
+#loginPage .login-title{font-size:18px;font-weight:800;color:var(--purple);margin-bottom:8px}
+#loginPage .login-sub{font-size:13px;color:var(--muted);margin-bottom:24px}
+#loginPage .login-error{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:16px;display:none}
+#loginPage .login-error.visible{display:block}
 @media(max-width:640px){
   .grid-2,.grid-3,.check-grid{grid-template-columns:1fr}
   header{padding:0 16px}
@@ -168,6 +177,26 @@ label.btn input[type="file"]{display:none}
 </head>
 <body>
 
+<div id="loginPage">
+  <div class="login-box">
+    <div class="login-title">Prihlásenie – DPPO generátor</div>
+    <div class="login-sub">Interný prístup Helwitax. Zadajte e-mail a heslo.</div>
+    <div id="loginError" class="login-error"></div>
+    <form id="loginForm" class="grid" style="gap:16px">
+      <div class="field">
+        <label for="loginEmail">E-mail</label>
+        <input type="email" id="loginEmail" required placeholder="vas@helwitax.sk" autocomplete="email">
+      </div>
+      <div class="field">
+        <label for="loginPassword">Heslo</label>
+        <input type="password" id="loginPassword" required placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;margin-top:8px">Prihlásiť sa</button>
+    </form>
+  </div>
+</div>
+
+<div id="appWrap">
 <header>
   <div class="logo-wrap">
     <svg class="header-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 377.73" width="95" height="36" role="img" aria-label="Helwitax">
@@ -187,6 +216,7 @@ label.btn input[type="file"]{display:none}
   </div>
   <div class="header-actions">
     <a href="docs/Navod_pre_uctovnikov.docx" target="_blank" rel="noopener" class="badge" style="text-decoration:none;color:var(--purple);margin-right:8px" title="Návod pre účtovníkov">Návod (DOCX)</a>
+    <button type="button" id="logoutBtn" class="badge" style="display:none;margin-right:8px;background:0;border:0;cursor:pointer;color:var(--purple);font:inherit" title="Odhlásiť sa">Odhlásiť sa</button>
     <span class="badge" id="headerYearBadge">2025</span>
   </div>
 </header>
@@ -296,8 +326,78 @@ label.btn input[type="file"]{display:none}
     </div>
   </div>
 </div>
+</div><!-- /#appWrap -->
 
 <script>
+// =====================================================================
+// SUPABASE – pri verejnom deployi ostáva prázdne; pri internom deployi nahradí scripts/inject-supabase-env.js
+// =====================================================================
+const SUPABASE_URL = 'https://mfsmwwkepywqiuvwhajs.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mc213d2tlcHl3cWl1dndoYWpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzMzA0NDEsImV4cCI6MjA4ODkwNjQ0MX0.tW4cc0ReH-_m92klMxzf3lS1x-G2ehubF1niwRA_1iE';   // doplňte sem anon public key z Supabase → Project Settings → API
+let supabaseClient = null;
+if (typeof supabase !== 'undefined' && SUPABASE_URL && SUPABASE_ANON_KEY) {
+  try { supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); } catch (e) { console.warn('Supabase init:', e); }
+}
+function isDbConfigured() { return !!supabaseClient; }
+
+// ── Prihlásenie (iba keď je DB nakonfigurovaná – interný link) ──
+function showLoginPage() {
+  document.getElementById('loginPage').classList.add('visible');
+  document.getElementById('appWrap').style.display = 'none';
+}
+function showAppPage() {
+  document.getElementById('loginPage').classList.remove('visible');
+  document.getElementById('appWrap').style.display = '';
+  var errEl = document.getElementById('loginError');
+  if (errEl) { errEl.classList.remove('visible'); errEl.textContent = ''; }
+  var lb = document.getElementById('logoutBtn');
+  if (lb) lb.style.display = isDbConfigured() ? '' : 'none';
+}
+async function initAuth() {
+  if (!isDbConfigured()) { showAppPage(); return; }
+  var appWrap = document.getElementById('appWrap');
+  if (appWrap) appWrap.style.display = 'none'; // skryť app kým nevieme session
+  try {
+    var session = (await supabaseClient.auth.getSession()).data?.session;
+    if (session) showAppPage(); else showLoginPage();
+  } catch (e) {
+    console.warn('Auth check:', e);
+    showLoginPage();
+  }
+}
+function setupLoginForm() {
+  var form = document.getElementById('loginForm');
+  if (!form) return;
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var email = document.getElementById('loginEmail').value.trim();
+    var pass = document.getElementById('loginPassword').value;
+    var errEl = document.getElementById('loginError');
+    if (!supabaseClient || !email || !pass) return;
+    errEl.classList.remove('visible');
+    errEl.textContent = '';
+    try {
+      await supabaseClient.auth.signInWithPassword({ email: email, password: pass });
+      showAppPage();
+    } catch (err) {
+      errEl.textContent = err?.message || 'Prihlásenie zlyhalo. Skontrolujte e-mail a heslo.';
+      errEl.classList.add('visible');
+    }
+  });
+}
+function setupLogout() {
+  var btn = document.getElementById('logoutBtn');
+  if (!btn) return;
+  btn.addEventListener('click', async function() {
+    if (!supabaseClient) return;
+    await supabaseClient.auth.signOut();
+    showLoginPage();
+  });
+}
+setupLoginForm();
+setupLogout();
+initAuth();
+
 // =====================================================================
 // KONŠTANTY – pre ďalší rok zmeňte len DPPO_ROK (a voliteľne GENERATOR_VERSION)
 // =====================================================================
@@ -543,6 +643,42 @@ function parseExcelFile(arrayBuffer) {
     var expMes = parseNumFromCell(sheetExport, 'B25');
     if (expStv !== null && !isNaN(expStv)) result.header.preddavkyBuduciRok = expStv;
     if (expMes !== null && !isNaN(expMes)) result.header.preddavkyBuduciRokMesacne = expMes;
+    // Tab D – daňové straty (B27-B68), len ak hárok má blok Tab D (riadok 26)
+    var a26 = sheetExport['A26'] && (sheetExport['A26'].v !== undefined || sheetExport['A26'].w);
+    var hasTabDBlock = a26 && String((sheetExport['A26'].v || sheetExport['A26'].w || '')).indexOf('Tab D') >= 0;
+    if (hasTabDBlock) {
+    result.tabDRows = {};
+    var tabDCells = [
+      { s: 1, r01: 'B27', r02: 'B28', r03: 'B29', od: null, do: null },
+      { s: 2, r01: 'B32', r02: 'B33', r03: 'B34', od: 'B30', do: 'B31' },
+      { s: 3, r01: 'B37', r02: 'B38', r03: 'B39', od: 'B35', do: 'B36' },
+      { s: 4, r01: 'B42', r02: 'B43', r03: 'B44', od: 'B40', do: 'B41' },
+      { s: 5, r01: 'B47', r02: 'B48', r03: 'B49', od: 'B45', do: 'B46' },
+      { s: 6, r01: 'B52', r02: 'B53', r03: 'B54', od: 'B50', do: 'B51' },
+      { s: 7, r01: 'B57', r02: 'B58', r03: 'B59', od: 'B55', do: 'B56' },
+      { s: 8, r01: 'B62', r02: 'B63', r03: 'B64', od: 'B60', do: 'B61' },
+      { s: 9, r01: 'B65', r02: 'B66', r03: 'B67', od: null, do: null }
+    ];
+    var r02Sum = 0;
+    for (var d = 0; d < tabDCells.length; d++) {
+      var c = tabDCells[d];
+      var key = 'tabDs' + (c.s < 10 ? '0' + c.s : '' + c.s);
+      var r01 = parseNumFromCell(sheetExport, c.r01);
+      var r02 = parseNumFromCell(sheetExport, c.r02);
+      var r03 = parseNumFromCell(sheetExport, c.r03);
+      if (r01 !== null || r02 !== null || r03 !== null || (c.od && sheetExport[c.od])) {
+        result.tabDRows[key] = {
+          datumOd: c.od ? (sheetExport[c.od] && (sheetExport[c.od].v !== undefined || sheetExport[c.od].w) ? fmtDate(sheetExport[c.od].v || sheetExport[c.od].w) : '') : undefined,
+          datumDo: c.do ? (sheetExport[c.do] && (sheetExport[c.do].v !== undefined || sheetExport[c.do].w) ? fmtDate(sheetExport[c.do].v || sheetExport[c.do].w) : '') : undefined,
+          r01: r01, r02: r02, r03: r03
+        };
+        if (r02 !== null && !isNaN(r02)) r02Sum += r02;
+      }
+    }
+    var r410FromExport = parseNumFromCell(sheetExport, 'B68');
+    if (r410FromExport !== null && !isNaN(r410FromExport)) result.rows[410] = r410FromExport;
+    else if (r02Sum !== 0) result.rows[410] = Math.round(r02Sum * 100) / 100;
+    }
   }
   // do XML idú len čísla
   function toNum(x) {
@@ -615,7 +751,7 @@ function esc(s) {
 function xmlEl(tag,val) { return '<'+tag+'>'+esc(val)+'</'+tag+'>'; }
 function xmlDec(tag,val) { return '<'+tag+'>'+esc(fmtDec(val))+'</'+tag+'>'; }
 
-function generateXml(header, rows, tabARows, tabBRows) {
+function generateXml(header, rows, tabARows, tabBRows, tabDRows) {
   const h = header || {};
   const rv = (n) => rows[n] ?? '';
   const pad2 = (i) => String(i).padStart(2,'0');
@@ -756,12 +892,20 @@ function generateXml(header, rows, tabARows, tabBRows) {
   for (let i=1;i<=6;i++) xml += '\t\t\t<r'+pad2(i)+'></r'+pad2(i)+'>\n';
   xml += '\t\t</tabC2>\n';
 
+  const tabD = tabDRows || {};
+  const tabDVal = (s, field) => {
+    const key = 'tabDs' + (s < 10 ? '0' + s : '' + s);
+    const o = tabD[key];
+    if (!o || o[field] === undefined || o[field] === null || o[field] === '') return '';
+    if (field === 'datumOd' || field === 'datumDo') return esc(String(o[field]).trim());
+    return esc(fmtDec(o[field]));
+  };
   xml += '\t\t<tabD>\n';
-  xml += '\t\t\t<tabDs01>\n\t\t\t\t<r01></r01>\n\t\t\t\t<r02></r02>\n\t\t\t\t<r03></r03>\n\t\t\t</tabDs01>\n';
+  xml += '\t\t\t<tabDs01>\n\t\t\t\t<r01>'+tabDVal(1,'r01')+'</r01>\n\t\t\t\t<r02>'+tabDVal(1,'r02')+'</r02>\n\t\t\t\t<r03>'+tabDVal(1,'r03')+'</r03>\n\t\t\t</tabDs01>\n';
   for (let i=2;i<=9;i++) {
     xml += '\t\t\t<tabDs'+pad2(i)+'>\n';
-    if (i <= 8) { xml += '\t\t\t\t<datumOd></datumOd>\n\t\t\t\t<datumDo></datumDo>\n'; }
-    xml += '\t\t\t\t<r01></r01>\n\t\t\t\t<r02></r02>\n\t\t\t\t<r03></r03>\n';
+    if (i <= 8) { xml += '\t\t\t\t<datumOd>'+tabDVal(i,'datumOd')+'</datumOd>\n\t\t\t\t<datumDo>'+tabDVal(i,'datumDo')+'</datumDo>\n'; }
+    xml += '\t\t\t\t<r01>'+tabDVal(i,'r01')+'</r01>\n\t\t\t\t<r02>'+tabDVal(i,'r02')+'</r02>\n\t\t\t\t<r03>'+tabDVal(i,'r03')+'</r03>\n';
     xml += '\t\t\t</tabDs'+pad2(i)+'>\n';
   }
   xml += '\t\t</tabD>\n';
@@ -1011,6 +1155,102 @@ function getReportData() {
     })() : '—'
   };
 }
+
+/** Dáta pre uloženie do databázy dppo_returns (Supabase) */
+function getSavePayload() {
+  if (!currentData || !currentData.header) return null;
+  const h = currentData.header;
+  const rows = currentData.rows || {};
+  const vy = currentData.vyhlasenie || { neuplatnujemPar50: true };
+  const toNum = (v) => { const n = parseFloat(String(v).replace(',','.')); return isNaN(n) ? null : n; };
+  const r400 = toNum(rows[400]);
+  const r100 = toNum(rows[100]);
+  const r1100 = toNum(rows[1100]);
+  const r1110 = toNum(rows[1110]);
+  const vhPoZdaneni = (r100 != null && r1100 != null) ? (r100 - r1100) : null;
+  let preddavkyTyp = 'ziadne';
+  let preddavkyVyska = null;
+  if (r1110 != null && r1110 > 5000) {
+    if (r1110 > 16600) {
+      preddavkyTyp = 'mesacne';
+      preddavkyVyska = h.preddavkyBuduciRokMesacne != null && h.preddavkyBuduciRokMesacne !== '' ? toNum(h.preddavkyBuduciRokMesacne) : (Math.round(r1110 / 12 * 100) / 100);
+    } else {
+      preddavkyTyp = 'stvrtrocne';
+      preddavkyVyska = h.preddavkyBuduciRok != null && h.preddavkyBuduciRok !== '' ? toNum(h.preddavkyBuduciRok) : (Math.round(r1110 / 4 * 100) / 100);
+    }
+  }
+  return {
+    ico: String(h.ico || '').trim() || null,
+    dic: String(h.dic || '').trim() || null,
+    obchodne_meno: String(h.obchodneMeno || '').trim() || null,
+    obdobie_od: h.zdanObdOd ? String(h.zdanObdOd).trim() : null,
+    obdobie_do: h.zdanObdDo ? String(h.zdanObdDo).trim() : null,
+    vh_pred_zdanenim: r400,
+    dan_na_uhradu: r1100,
+    vh_po_zdaneni: vhPoZdaneni,
+    plati_preddavky: !!(r1110 != null && r1110 > 5000),
+    preddavky_typ: preddavkyTyp,
+    preddavky_vyska: preddavkyVyska,
+    odklad_podania: !!(currentData.odkladPodania === true),
+    xml_file_name: getXmlFileName() + '.xml'
+  };
+}
+
+async function saveToDatabase() {
+  if (!isDbConfigured()) {
+    alert('Databáza nie je nakonfigurovaná. Doplňte SUPABASE_URL a SUPABASE_ANON_KEY v kóde (index.html).');
+    return;
+  }
+  const payload = getSavePayload();
+  if (!payload || !payload.ico) {
+    alert('Žiadne dáta na uloženie alebo chýba IČO.');
+    return;
+  }
+  const statusEl = document.getElementById('saveDbStatus');
+  if (statusEl) { statusEl.style.display = 'block'; statusEl.className = 'validation-box'; statusEl.textContent = 'Ukladám…'; }
+  try {
+    const { data, error } = await supabaseClient.from('dppo_returns').insert(payload).select('id').single();
+    if (error) throw error;
+    if (statusEl) { statusEl.className = 'validation-box validation-ok'; statusEl.textContent = 'Záznam bol uložený do databázy.'; }
+  } catch (err) {
+    const msg = (err && err.message) ? err.message : String(err);
+    if (statusEl) { statusEl.className = 'validation-box validation-errors'; statusEl.textContent = 'Chyba: ' + msg; }
+    alert('Uloženie zlyhalo: ' + msg);
+  }
+}
+
+async function showPrehledUlozenych() {
+  if (!isDbConfigured()) { alert('Databáza nie je nakonfigurovaná.'); return; }
+  const overlay = document.getElementById('prehledOverlay');
+  const content = document.getElementById('prehledContent');
+  if (!overlay || !content) return;
+  content.innerHTML = '<p style="padding:20px;color:var(--muted)">Načítavam…</p>';
+  overlay.style.display = 'flex';
+  try {
+    const { data, error } = await supabaseClient.from('dppo_returns').select('*').order('created_at', { ascending: false }).limit(200);
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      content.innerHTML = '<p style="padding:20px;color:var(--muted)">V databáze nie sú žiadne záznamy.</p>';
+    } else {
+      let table = '<table class="sum-table" style="width:100%;font-size:12px"><thead><tr><th>IČO</th><th>Obchodné meno</th><th>Obdobie</th><th>VH pred zdanením</th><th>Daň</th><th>VH po zdanení</th><th>Preddavky</th><th>Odklad podania</th><th>Uložené</th></tr></thead><tbody>';
+      data.forEach(function(r) {
+        const fmt = (v) => (v != null && v !== '') ? (typeof v === 'number' ? v.toFixed(2) : String(v)) : '—';
+        const predd = r.plati_preddavky ? (r.preddavky_typ === 'mesacne' ? 'mesačné ' + fmt(r.preddavky_vyska) : 'štvrťr. ' + fmt(r.preddavky_vyska)) : 'nie';
+        const created = r.created_at ? new Date(r.created_at).toLocaleString('sk-SK') : '—';
+        table += '<tr><td>'+esc(r.ico||'')+'</td><td>'+esc(r.obchodne_meno||'')+'</td><td>'+(r.obdobie_od||'')+' – '+(r.obdobie_do||'')+'</td><td>'+fmt(r.vh_pred_zdanenim)+'</td><td>'+fmt(r.dan_na_uhradu)+'</td><td>'+fmt(r.vh_po_zdaneni)+'</td><td>'+esc(predd)+'</td><td>'+(r.odklad_podania?'Áno':'Nie')+'</td><td>'+esc(created)+'</td></tr>';
+      });
+      table += '</tbody></table>';
+      content.innerHTML = '<div style="max-height:70vh;overflow:auto">'+table+'</div>';
+    }
+  } catch (err) {
+    content.innerHTML = '<p class="validation-box validation-errors" style="margin:20px">Chyba: '+esc(err && err.message ? err.message : String(err))+'</p>';
+  }
+}
+function closePrehledOverlay() {
+  var el = document.getElementById('prehledOverlay');
+  if (el) el.style.display = 'none';
+}
+
 const STEP_ORDER = ['upload','data','header','osoba','vyhlasenie','xml'];
 
 function goStep(name) {
@@ -1333,7 +1573,20 @@ function renderXmlTab() {
       html += '<tr><td class="report-label">Dátum a čas generovania</td><td>'+esc(rd.generatedAt)+'</td></tr>';
       html += '</tbody></table>';
       html += '<div class="btn-row" style="margin-top:16px"><button type="button" class="btn btn-green" onclick="doDownloadReportPdf()">Stiahnuť report (PDF)</button></div>';
+      html += '<div class="section-header" style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px"><span class="section-tag">Databáza</span><span class="section-title">'+(isDbConfigured() ? 'Uložiť záznam klienta' : 'Ukladanie záznamov')+'</span></div>';
+      if (isDbConfigured()) {
+        if (!currentData.odkladPodania && currentData.odkladPodania !== false) currentData.odkladPodania = false;
+        html += '<div class="check-item" style="margin:12px 0"><input type="checkbox" id="chkOdkladPodania" '+(currentData.odkladPodania?'checked':'')+' style="width:auto;margin-right:8px"><label for="chkOdkladPodania">Podaný odklad podania</label></div>';
+        html += '<div class="btn-row" style="margin-top:12px"><button type="button" class="btn btn-primary" id="btnSaveToDb" onclick="saveToDatabase()">Uložiť záznam do databázy</button> <button type="button" class="btn btn-secondary" onclick="showPrehledUlozenych()">Prehľad uložených</button></div>';
+        html += '<div id="saveDbStatus" class="validation-box" style="margin-top:12px;display:none"></div>';
+      } else {
+        html += '<p class="info-box" style="margin-top:12px">Tento generátor je voľne dostupný. Pre ukladanie záznamov do databázy použite interný generátor Helwitax.</p>';
+      }
       html += '</div></div>';
+      setTimeout(function(){
+        var chk = document.getElementById('chkOdkladPodania');
+        if (chk) chk.addEventListener('change', function(){ if (currentData) currentData.odkladPodania = chk.checked; });
+      }, 0);
     }
   } else {
     html += '<div class="section"><div class="section-body" style="text-align:center;padding:60px;color:var(--muted)">XML ešte nebolo vygenerované.</div></div>';
@@ -1407,7 +1660,7 @@ function doGenerate() {
     alert('Opravte chyby pred generovaním:\n\n' + val.errors.join('\n'));
     return;
   }
-  generatedXml = generateXml(currentData.header, currentData.rows, currentData.tabARows, currentData.tabBRows);
+  generatedXml = generateXml(currentData.header, currentData.rows, currentData.tabARows, currentData.tabBRows, currentData.tabDRows);
   reportGenerationTime = new Date();
   goStep('xml');
 }
@@ -1926,5 +2179,14 @@ document.title = 'DPPO ' + DPPO_ROK + ' – Generátor XML | Helwitax';
 var badgeEl = document.getElementById('headerYearBadge');
 if (badgeEl) badgeEl.textContent = DPPO_ROK;
 </script>
+<div id="prehledOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closePrehledOverlay()">
+  <div style="background:var(--surface);border-radius:12px;max-width:1200px;width:100%;max-height:90vh;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+    <div style="padding:16px 20px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <strong>Prehľad uložených záznamov (DPPO)</strong>
+      <button type="button" class="btn btn-secondary" onclick="closePrehledOverlay()">Zavrieť</button>
+    </div>
+    <div id="prehledContent" style="padding:20px"></div>
+  </div>
+</div>
 </body>
 </html>
