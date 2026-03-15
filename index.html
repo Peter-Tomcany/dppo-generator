@@ -1225,11 +1225,11 @@ function getReportData() {
   const fmt = (v) => (v !== '' && v !== null && v !== undefined) ? Number(toNum(v)).toFixed(2).replace('.', ',') : '—';
 
   const r100 = toNum(rv(100));
+  const r1050 = toNum(rv(1050));
   const r1080 = toNum(rv(1080));
   const r1100 = toNum(rv(1100));
   const r1101 = toNum(rv(1101));
-  const danNaUhradu = r1100;
-  const ziskPoZdaneni = (r100 - danNaUhradu);
+  const ziskPoZdaneni = (r100 - r1050);
 
   let par50Text = 'Neuplatňujem postup podľa § 50 zákona';
   if (!vy.neuplatnujemPar50) {
@@ -1277,7 +1277,7 @@ function getReportData() {
     r1040: formatReportNumber(fmt(rv(1040))),
     r1110: formatReportNumber(fmt(rv(1110))),
     showPreddavky: showPreddavky,
-    ziskPoZdaneni: (r100 !== 0 || danNaUhradu !== 0) ? formatReportNumber(ziskPoZdaneni.toFixed(2).replace('.', ',')) : '—',
+    ziskPoZdaneni: (r100 !== 0 || r1050 !== 0) ? formatReportNumber(ziskPoZdaneni.toFixed(2).replace('.', ',')) : '—',
     preddavkyBuduciRok: formatReportNumber(preddavkyBrFmt),
     preddavkyBuduciRokMesacne: formatReportNumber(preddavkyBrMesFmt),
     preddavkyObligationText: preddavkyObligationText,
@@ -1302,9 +1302,10 @@ function getSavePayload() {
   const toNum = (v) => { const n = parseFloat(String(v).replace(',','.')); return isNaN(n) ? null : n; };
   const r400 = toNum(rows[400]);
   const r100 = toNum(rows[100]);
+  const r1050 = toNum(rows[1050]);
   const r1100 = toNum(rows[1100]);
   const r1110 = toNum(rows[1110]);
-  const vhPoZdaneni = (r100 != null && r1100 != null) ? (r100 - r1100) : null;
+  const vhPoZdaneni = (r100 != null && r1050 != null) ? (r100 - r1050) : null;
   let preddavkyTyp = 'ziadne';
   let preddavkyVyska = null;
   if (r1110 != null && r1110 > 5000) {
@@ -2439,26 +2440,30 @@ function doDownloadReportPdf() {
   // ================================================================
   if (y > 270) { doc.addPage(); y = 10; }
   var hasPrijimatel = rd.prijimatelObchodneMeno && rd.prijimatelObchodneMeno !== '—';
-  var par50BlockH = hasPrijimatel ? 13 : 8.5;
   sf(FIALOVA);
-  doc.rect(ML, y, 1, par50BlockH, 'F');
+  doc.rect(ML, y, 1, 8.5, 'F');
   sf([248, 247, 250]);
-  doc.roundedRect(ML + 1, y, CW - 1, par50BlockH, 0, 1, 'F');
+  doc.roundedRect(ML + 1, y, CW - 1, 8.5, 0, 1, 'F');
   doc.setFontSize(5.5);
   doc.setFont('CabinetGrotesk', 'bold');
   sc(TEXT_MUTED);
   doc.text('VII. ČASŤ — § 50', ML + 4, y + 3.2);
+  if (hasPrijimatel) {
+    doc.setFont('CabinetGrotesk', 'normal');
+    sc(TEXT_MUTED);
+    doc.text('Prijímateľ asignácie', ML + CW - 4, y + 3.2, { align: 'right' });
+  }
   doc.setFontSize(7);
   doc.setFont('CabinetGrotesk', 'bold');
   sc(FIALOVA);
   doc.text(rd.par50Text || '—', ML + 4, y + 7);
   if (hasPrijimatel) {
-    doc.setFontSize(6.5);
+    doc.setFontSize(7);
     doc.setFont('CabinetGrotesk', 'normal');
     sc([40, 40, 40]);
-    doc.text(rd.prijimatelObchodneMeno, ML + 4, y + 11.2);
+    doc.text(rd.prijimatelObchodneMeno, ML + CW - 4, y + 7, { align: 'right' });
   }
-  y += par50BlockH + 2;
+  y += 10;
 
   // ================================================================
   // 7) FOOTER
