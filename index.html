@@ -1329,8 +1329,7 @@ function getSavePayload() {
     preddavky_typ: preddavkyTyp,
     preddavky_vyska: preddavkyVyska,
     odklad_podania: !!(currentData.odkladPodania === true),
-    xml_file_name: getXmlFileName() + '.xml',
-    prijimatel_obchodne_meno: String(vy.c7obchodneMeno || '').trim() || null
+    xml_file_name: getXmlFileName() + '.xml'
   };
 }
 
@@ -2439,10 +2438,12 @@ function doDownloadReportPdf() {
   // 6) §50 box
   // ================================================================
   if (y > 270) { doc.addPage(); y = 10; }
+  var hasPrijimatel = rd.prijimatelObchodneMeno && rd.prijimatelObchodneMeno !== '—';
+  var par50BlockH = hasPrijimatel ? 13 : 8.5;
   sf(FIALOVA);
-  doc.rect(ML, y, 1, 8.5, 'F');
+  doc.rect(ML, y, 1, par50BlockH, 'F');
   sf([248, 247, 250]);
-  doc.roundedRect(ML + 1, y, CW - 1, 8.5, 0, 1, 'F');
+  doc.roundedRect(ML + 1, y, CW - 1, par50BlockH, 0, 1, 'F');
   doc.setFontSize(5.5);
   doc.setFont('CabinetGrotesk', 'bold');
   sc(TEXT_MUTED);
@@ -2451,15 +2452,13 @@ function doDownloadReportPdf() {
   doc.setFont('CabinetGrotesk', 'bold');
   sc(FIALOVA);
   doc.text(rd.par50Text || '—', ML + 4, y + 7);
-  if (rd.prijimatelObchodneMeno && rd.prijimatelObchodneMeno !== '—') {
-    doc.setFontSize(5.5);
+  if (hasPrijimatel) {
+    doc.setFontSize(6.5);
     doc.setFont('CabinetGrotesk', 'normal');
-    sc(TEXT_MUTED);
-    doc.text('Názov org. pre asignáciu dane: ' + (rd.prijimatelObchodneMeno || ''), ML + 4, y + 10.5);
-    doc.setFont('CabinetGrotesk', 'bold');
-    sc(FIALOVA);
+    sc([40, 40, 40]);
+    doc.text(rd.prijimatelObchodneMeno, ML + 4, y + 11.2);
   }
-  y += 14;
+  y += par50BlockH + 2;
 
   // ================================================================
   // 7) FOOTER
