@@ -127,10 +127,14 @@ label.btn input[type="file"]{display:none}
 .sum-table td:last-child{text-align:right;font-weight:700;font-family:var(--sans)}
 .sum-table .total td{color:var(--purple);font-size:16px;font-weight:800;background:rgba(175,250,150,.18)}
 .sum-table .section-sep td{background:var(--surface2);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);padding:7px 16px;font-weight:800}
-/* Prehľad uložených – hlavička tabuľky jemne odlíšená */
-#prehledTableContainer .sum-table thead th{background:rgba(50,25,65,.06);color:var(--purple);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:10px 12px;border-bottom:1.5px solid var(--border)}
-#prehledTableContainer .sum-table td{padding:10px 12px}
-#prehledTableContainer .prehled-table-cols td:first-child,#prehledTableContainer .prehled-table-cols th:first-child{min-width:180px;max-width:320px}
+/* Prehľad uložených – vizuál a zarovnanie */
+#prehledTableContainer{margin:0 auto;max-width:100%}
+#prehledTableContainer .sum-table{margin:0 auto;border-collapse:collapse;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(50,25,65,.08)}
+#prehledTableContainer .sum-table thead th{background:rgba(50,25,65,.08);color:var(--purple);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:12px 14px;border-bottom:2px solid var(--border);text-align:center;vertical-align:middle}
+#prehledTableContainer .sum-table td{padding:12px 14px;text-align:center;vertical-align:middle;border-bottom:1px solid var(--border)}
+#prehledTableContainer .sum-table tbody tr:hover{background:rgba(175,250,150,.06)}
+#prehledTableContainer .prehled-table-cols td:first-child,#prehledTableContainer .prehled-table-cols th:first-child{min-width:160px;max-width:280px;text-align:center}
+#prehledTableContainer > div{border-radius:8px;border:1px solid var(--border);background:var(--surface)}
 
 /* ── CHECK GRID ── */
 .check-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -780,6 +784,23 @@ function parseExcelFile(arrayBuffer) {
     if (r410FromExport !== null && !isNaN(r410FromExport)) result.rows[410] = r410FromExport;
     else if (r02Sum !== 0) result.rows[410] = Math.round(r02Sum * 100) / 100;
     }
+    // Riadky DP z mapovania na DPPO export (riadok 71+, stĺpec C = č. riadku, E = hodnota)
+    var exportStartRow = 71;
+    for (var er = 0; er <= 95; er++) {
+      var rowIdx = exportStartRow + er;
+      var cC = sheetExport[XLSX.utils.encode_cell({ r: rowIdx - 1, c: 2 })];
+      var cE = sheetExport[XLSX.utils.encode_cell({ r: rowIdx - 1, c: 4 })];
+      var rn = null;
+      if (cC && (cC.v !== undefined && cC.v !== null && cC.v !== '')) {
+        var n = typeof cC.v === 'number' ? cC.v : parseInt(String(cC.v).trim(), 10);
+        if (!isNaN(n)) rn = n;
+      }
+      if (rn === null && cC && cC.w) { var n = parseInt(String(cC.w).trim(), 10); if (!isNaN(n)) rn = n; }
+      if (rn === null) continue;
+      var valE = (cE && (cE.v !== undefined && cE.v !== null && cE.v !== '')) ? cE.v : (cE && cE.w ? cE.w : null);
+      if (valE === null || valE === '') continue;
+      if (ROW_MAP.some(function(x) { return x[0] === rn; }) || rn === 610) result.rows[rn] = valE;
+    }
   }
   // do XML idú len čísla
   function toNum(x) {
@@ -1050,11 +1071,25 @@ function generateXml(header, rows, tabARows, tabBRows, tabDRows) {
 
   xml += '\t\t<obmedzenaDanovaPovinnost>\n\t\t\t<datumOd></datumOd>\n\t\t\t<datumDo></datumDo>\n\t\t\t<TIN></TIN>\n\t\t</obmedzenaDanovaPovinnost>\n';
 
-  xml += '\t\t<tabK>\n\t\t\t<obdobiaMinimalDane>\n';
-  for (let per=1;per<=4;per++) {
-    xml += '\t\t\t\t<obdobie'+per+'>\n\t\t\t\t\t<datumOd></datumOd>\n\t\t\t\t\t<datumDo></datumDo>\n\t\t\t\t\t<vyskaKladnehoRozdielu></vyskaKladnehoRozdielu>\n\t\t\t\t\t<zapocitanaVPredObdobiach></zapocitanaVPredObdobiach>\n\t\t\t\t\t<zapocitanaVDanomObdobi></zapocitanaVDanomObdobi>\n\t\t\t\t\t<zostavajucaCast></zostavajucaCast>\n\t\t\t\t</obdobie'+per+'>\n';
-  }
-  xml += '\t\t\t</obdobiaMinimalDane>\n\t\t\t<spolu>\n\t\t\t\t<zapocitanaVDanomObdobi></zapocitanaVDanomObdobi>\n\t\t\t\t<zostavajucaCast></zostavajucaCast>\n\t\t\t</spolu>\n\t\t</tabK>\n';
+  (function() {
+    var toNum = function(v) { if (v===null||v===undefined||v==='') return 0; var n = typeof v==='number' ? v : parseFloat(String(v).replace(',','.')); return isNaN(n) ? 0 : n; };
+    var r800 = toNum(rv(800)), r810 = toNum(rv(810)), r920 = toNum(rv(920));
+    var r910 = (r800 > r810) ? (r800 - r810) : 0;
+    var hasTabK = r910 > 0;
+    var zapocitanaSpolu = r920;
+    var zostavajucaSpolu = Math.max(0, r910 - r920);
+    var datumOd = fmtDate(h.zdanObdOd) || '';
+    var datumDo = fmtDate(h.zdanObdDo) || '';
+    xml += '\t\t<tabK>\n\t\t\t<obdobiaMinimalDane>\n';
+    for (var per=1;per<=4;per++) {
+      if (per===1 && hasTabK) {
+        xml += '\t\t\t\t<obdobie1>\n\t\t\t\t\t<datumOd>'+esc(datumOd)+'</datumOd>\n\t\t\t\t\t<datumDo>'+esc(datumDo)+'</datumDo>\n\t\t\t\t\t<vyskaKladnehoRozdielu>'+esc(fmtDec(r910))+'</vyskaKladnehoRozdielu>\n\t\t\t\t\t<zapocitanaVPredObdobiach>0.00</zapocitanaVPredObdobiach>\n\t\t\t\t\t<zapocitanaVDanomObdobi>'+esc(fmtDec(zapocitanaSpolu))+'</zapocitanaVDanomObdobi>\n\t\t\t\t\t<zostavajucaCast>'+esc(fmtDec(zostavajucaSpolu))+'</zostavajucaCast>\n\t\t\t\t</obdobie1>\n';
+      } else {
+        xml += '\t\t\t\t<obdobie'+per+'>\n\t\t\t\t\t<datumOd></datumOd>\n\t\t\t\t\t<datumDo></datumDo>\n\t\t\t\t\t<vyskaKladnehoRozdielu></vyskaKladnehoRozdielu>\n\t\t\t\t\t<zapocitanaVPredObdobiach></zapocitanaVPredObdobiach>\n\t\t\t\t\t<zapocitanaVDanomObdobi></zapocitanaVDanomObdobi>\n\t\t\t\t\t<zostavajucaCast></zostavajucaCast>\n\t\t\t\t</obdobie'+per+'>\n';
+      }
+    }
+    xml += '\t\t\t</obdobiaMinimalDane>\n\t\t\t<spolu>\n\t\t\t\t<zapocitanaVDanomObdobi>'+esc(hasTabK ? fmtDec(zapocitanaSpolu) : '')+'</zapocitanaVDanomObdobi>\n\t\t\t\t<zostavajucaCast>'+esc(hasTabK ? fmtDec(zostavajucaSpolu) : '')+'</zostavajucaCast>\n\t\t\t</spolu>\n\t\t</tabK>\n';
+  })();
 
   xml += '\t\t<zdaneniePar17f>\n';
   for (let i=1;i<=6;i++) xml += '\t\t\t<r'+pad2(i)+'>\n\t\t\t\t<s1></s1>\n\t\t\t\t<s2></s2>\n\t\t\t</r'+pad2(i)+'>\n';
@@ -1248,6 +1283,7 @@ function getReportData() {
     preddavkyObligationText: preddavkyObligationText,
     rokPreddavky: rokPreddavky,
     par50Text: par50Text,
+    prijimatelObchodneMeno: (vy.c7obchodneMeno && String(vy.c7obchodneMeno).trim()) ? String(vy.c7obchodneMeno).trim() : '—',
     fileName: getXmlFileName() + '.xml',
     generatedAt: reportGenerationTime ? (function(){
       const d = reportGenerationTime;
@@ -1293,7 +1329,8 @@ function getSavePayload() {
     preddavky_typ: preddavkyTyp,
     preddavky_vyska: preddavkyVyska,
     odklad_podania: !!(currentData.odkladPodania === true),
-    xml_file_name: getXmlFileName() + '.xml'
+    xml_file_name: getXmlFileName() + '.xml',
+    prijimatel_obchodne_meno: String(vy.c7obchodneMeno || '').trim() || null
   };
 }
 
@@ -1487,14 +1524,14 @@ function downloadPrehledXlsx() {
   if (typeof XLSX === 'undefined') { alert('Export XLSX nie je k dispozícii.'); return; }
   var data = getFilteredPrehledData();
   if (!data || data.length === 0) { alert('Žiadne dáta na export.'); return; }
-  var header = ['Názov subjektu','IČO','DIČ','Rok priznania','Daň','VH po zdanení','Preddavky (MES/KVA/NIE)','Výška preddavkov','Uložené'];
+  var header = ['Názov subjektu','IČO','DIČ','Rok priznania','Daň','VH po zdanení','Preddavky (MES/KVA/NIE)','Výška preddavkov','Názov org. pre asignáciu dane','Uložené'];
   var aoa = [header];
   data.forEach(function(r) {
     var rok = prehledRokPriznania(r.obdobie_do);
     var preddLabel = prehledPreddavkyLabel(r);
     var preddVyska = r.plati_preddavky && (r.preddavky_typ === 'mesacne' || r.preddavky_typ === 'stvrtrocne') ? prehledFmtSk(r.preddavky_vyska) : '';
     var created = r.created_at ? new Date(r.created_at).toLocaleString('sk-SK') : '';
-    aoa.push([r.obchodne_meno||'',r.ico||'',r.dic||'',rok,prehledFmtSk(r.dan_na_uhradu),prehledFmtSk(r.vh_po_zdaneni),preddLabel,preddVyska,created]);
+    aoa.push([r.obchodne_meno||'',r.ico||'',r.dic||'',rok,prehledFmtSk(r.dan_na_uhradu),prehledFmtSk(r.vh_po_zdaneni),preddLabel,preddVyska,r.prijimatel_obchodne_meno||'',created]);
   });
   var ws = XLSX.utils.aoa_to_sheet(aoa);
   var wb = XLSX.utils.book_new();
@@ -1875,6 +1912,7 @@ function renderXmlTab() {
       if (rd.preddavkyBuduciRokMesacne !== '—') html += '<tr><td class="report-label">Preddavky od budúceho roka (mesačné)</td><td>'+esc(rd.preddavkyBuduciRokMesacne)+' EUR</td></tr>';
       html += '<tr><td class="report-label">Platenie preddavkov na daň z príjmov PO v roku '+rd.rokPreddavky+'</td><td>'+esc(rd.preddavkyObligationText)+'</td></tr>';
       html += '<tr><td class="report-label">VII. časť §50</td><td>'+esc(rd.par50Text)+'</td></tr>';
+      if (rd.prijimatelObchodneMeno && rd.prijimatelObchodneMeno !== '—') html += '<tr><td class="report-label">Názov organizácie pre asignáciu dane</td><td>'+esc(rd.prijimatelObchodneMeno)+'</td></tr>';
       html += '<tr><td class="report-label">Názov súboru</td><td>'+esc(rd.fileName)+'</td></tr>';
       html += '<tr><td class="report-label">Dátum a čas generovania</td><td>'+esc(rd.generatedAt)+'</td></tr>';
       html += '</tbody></table>';
@@ -2413,6 +2451,14 @@ function doDownloadReportPdf() {
   doc.setFont('CabinetGrotesk', 'bold');
   sc(FIALOVA);
   doc.text(rd.par50Text || '—', ML + 4, y + 7);
+  if (rd.prijimatelObchodneMeno && rd.prijimatelObchodneMeno !== '—') {
+    doc.setFontSize(5.5);
+    doc.setFont('CabinetGrotesk', 'normal');
+    sc(TEXT_MUTED);
+    doc.text('Názov org. pre asignáciu dane: ' + (rd.prijimatelObchodneMeno || ''), ML + 4, y + 10.5);
+    doc.setFont('CabinetGrotesk', 'bold');
+    sc(FIALOVA);
+  }
   y += 14;
 
   // ================================================================
